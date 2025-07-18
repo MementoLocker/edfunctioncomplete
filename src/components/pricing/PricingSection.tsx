@@ -129,15 +129,57 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
     return Math.round(((1 - 0.8) * 100)); // 20% savings
   };
 
-  const handleSubscribe = async (tierName: string, priceId?: string) => {
-    if (tierName === 'Free Trial') {
-      if (user) {
-        // User is already logged in, redirect to create capsule
-        window.location.href = '/create-capsule';
-      } else {
-        // User not logged in, open sign up modal for free trial
-        onSignUp?.();
-      }
+  import { supabase } from '@/lib/supabase'; // Make sure this import is at the top of the file
+
+const handleSubscribe = async (tierName: string, priceId?: string) => {
+  // This part handles the "Free Trial" button
+  if (tierName === 'Free Trial') {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      window.location.href = '/create-capsule';
+    } else {
+      onSignUp?.();
+    }
+    return; // Exit the function after handling free trial
+  }
+
+  // This NEW part handles all PAID plans
+  if (!priceId) {
+    alert('Configuration error: This plan is missing a Price ID.');
+    return;
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    alert("Please sign up or log in to subscribe to a paid plan.");
+    onSignUp?.(); // Open the sign-up/log-in modal
+    return;
+  }
+
+  // Call the Stripe checkout function
+  try {
+    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      body: {
+        priceId: priceId,
+        successUrl: `${window.location.origin}/create-capsule`, // Redirect to capsule creation on success
+        cancelUrl: window.location.href, // Return to the current page on cancellation
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data.url) {
+      // Redirect the user to the Stripe Checkout page
+      window.location.href = data.url;
+    }
+  } catch (e) {
+    console.error('Error creating checkout session:', e);
+    alert(`Error: ${(e as Error).message}`);
+  }
+};
       return;
     }
 
