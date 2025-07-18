@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Star, Crown, Gem, Music } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 interface PricingSectionProps {
   onSignIn?: () => void;
@@ -27,7 +27,9 @@ const pricingTiers = [
     popular: false,
     color: 'green',
     storage: '3GB',
-    capsules: '1 capsule'
+    capsules: '1 capsule',
+    stripeMonthlyPriceId: null,
+    stripeYearlyPriceId: null
   },
   {
     name: 'Keepsake',
@@ -45,7 +47,8 @@ const pricingTiers = [
     color: 'amber',
     storage: '10GB',
     capsules: '5 capsules/month',
-    priceId: 'price_1PgWqkRv0nOn5G2tHj3k4l5m' // Example Price ID
+    stripeMonthlyPriceId: 'price_1QdKJGRv0nOn5G2tKQJGJGJG', // Replace with your actual monthly price ID
+    stripeYearlyPriceId: 'price_1QdKJHRv0nOn5G2tKQJGJGJH'   // Replace with your actual yearly price ID
   },
   {
     name: 'Heirloom',
@@ -63,7 +66,8 @@ const pricingTiers = [
     color: 'orange',
     storage: '25GB',
     capsules: '8 capsules/month',
-    priceId: 'price_1PgWqgRv0nOn5G2tO8p7q6nK' // Example Price ID
+    stripeMonthlyPriceId: 'price_1QdKJIRv0nOn5G2tKQJGJGJI', // Replace with your actual monthly price ID
+    stripeYearlyPriceId: 'price_1QdKJJRv0nOn5G2tKQJGJGJJ'   // Replace with your actual yearly price ID
   },
   {
     name: 'Legacy',
@@ -83,7 +87,8 @@ const pricingTiers = [
     color: 'red',
     storage: '100GB',
     capsules: 'Unlimited capsules',
-    priceId: 'price_1PgWqeRv0nOn5G2tJkLmnOpQ' // Example Price ID
+    stripeMonthlyPriceId: 'price_1QdKJKRv0nOn5G2tKQJGJGJK', // Replace with your actual monthly price ID
+    stripeYearlyPriceId: 'price_1QdKJLRv0nOn5G2tKQJGJGJL'   // Replace with your actual yearly price ID
   }
 ];
 
@@ -104,7 +109,8 @@ const musicTier = {
   color: 'purple',
   storage: 'Unlimited Downloads',
   capsules: 'Music Library Access',
-  priceId: 'price_music_pro' // Example Price ID
+  stripeMonthlyPriceId: 'price_music_monthly', // Replace with your actual monthly price ID
+  stripeYearlyPriceId: 'price_music_yearly'     // Replace with your actual yearly price ID
 };
 
 const currencies = [
@@ -129,9 +135,8 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
     return Math.round(((1 - 0.8) * 100)); // 20% savings
   };
 
-  const handleSubscribe = async (tierName: string, priceId?: string) => {
+  const handleSubscribe = async (tierName: string, tier: any) => {
     if (tierName === 'Free Trial') {
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         window.location.href = '/create-capsule';
       } else {
@@ -140,38 +145,64 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       return;
     }
 
-    if (!priceId) {
-      alert('Configuration error: This plan is missing a Price ID.');
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-
     if (!user) {
-      alert("Please sign up or log in to subscribe to a paid plan.");
       onSignUp?.();
       return;
     }
 
+    // Get the correct price ID based on billing period
+    const priceId = isYearly ? tier.stripeYearlyPriceId : tier.stripeMonthlyPriceId;
+
+    if (!priceId) {
+      console.error('Missing price ID for tier:', tierName, 'billing period:', isYearly ? 'yearly' : 'monthly');
+      alert('Configuration error: This plan is missing a Price ID. Please contact support.');
+      return;
+    }
+
+    console.log('Initiating checkout for:', {
+      tierName,
+      priceId,
+      billingPeriod: isYearly ? 'yearly' : 'monthly',
+      currency: selectedCurrency.code
+    });
     try {
+      // Get current session to ensure we have a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        alert('Authentication error. Please sign in again.');
+        onSignIn?.();
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId: priceId,
-          successUrl: `${window.location.origin}/create-capsule`,
+          successUrl: `${window.location.origin}/subscription?success=true`,
           cancelUrl: window.location.href,
+          currency: selectedCurrency.code.toLowerCase()
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
       }
 
       if (data.url) {
+        console.log('Redirecting to Stripe checkout:', data.url);
         window.location.href = data.url;
+      } else {
+        console.error('No checkout URL returned from function');
+        throw new Error('No checkout URL received from payment service');
       }
-    } catch (e) {
-      console.error('Error creating checkout session:', e);
-      alert(`Error: ${(e as Error).message}`);
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert(`Payment error: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Please try again or contact support.`);
     }
   };
 
@@ -304,7 +335,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
 
               <div className="mt-auto">
                 <button
-                  onClick={() => handleSubscribe(tier.name, tier.priceId)}
+                  onClick={() => handleSubscribe(tier.name, tier)}
                   className={`w-full py-4 px-6 rounded-none font-medium transition-all duration-500 tracking-wide uppercase text-sm ${
                     tier.popular
                       ? 'btn-primary'
