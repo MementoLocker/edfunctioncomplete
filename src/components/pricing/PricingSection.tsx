@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Star, Crown, Gem, Music } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '@/lib/supabase'; // MOVED TO THE TOP
+import { supabase } from '@/lib/supabase';
 
 interface PricingSectionProps {
   onSignIn?: () => void;
@@ -45,7 +45,7 @@ const pricingTiers = [
     color: 'amber',
     storage: '10GB',
     capsules: '5 capsules/month',
-    priceId: 'price_keepsake' // Assuming a real price ID exists
+    priceId: 'price_1PgWqkRv0nOn5G2tHj3k4l5m' // Example Price ID
   },
   {
     name: 'Heirloom',
@@ -63,12 +63,12 @@ const pricingTiers = [
     color: 'orange',
     storage: '25GB',
     capsules: '8 capsules/month',
-    priceId: 'price_heirloom' // Assuming a real price ID exists
+    priceId: 'price_1PgWqgRv0nOn5G2tO8p7q6nK' // Example Price ID
   },
   {
     name: 'Legacy',
     icon: Gem,
-    price: { monthly: 19.99, yearly: 15.99 }, // FIXED: Removed duplicate price property
+    price: { monthly: 19.99, yearly: 15.99 },
     description: 'For large families and organizations',
     features: [
       'Unlimited time capsules',
@@ -83,11 +83,10 @@ const pricingTiers = [
     color: 'red',
     storage: '100GB',
     capsules: 'Unlimited capsules',
-    priceId: 'price_legacy' // Assuming a real price ID exists
+    priceId: 'price_1PgWqeRv0nOn5G2tJkLmnOpQ' // Example Price ID
   }
 ];
 
-// ... (musicTier and currencies data remains the same)
 const musicTier = {
   name: 'Music Licensing Pro',
   icon: Music,
@@ -105,7 +104,7 @@ const musicTier = {
   color: 'purple',
   storage: 'Unlimited Downloads',
   capsules: 'Music Library Access',
-  priceId: 'price_music_pro'
+  priceId: 'price_music_pro' // Example Price ID
 };
 
 const currencies = [
@@ -116,9 +115,8 @@ const currencies = [
   { code: 'AUD', symbol: 'A$', rate: 1.71, flag: '🇦🇺' },
 ];
 
-
 export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSignUp }) => {
-  const { user } = useAuth(); // This hook is defined in the original file, assuming it works correctly.
+  const { user } = useAuth();
   const [isYearly, setIsYearly] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
 
@@ -131,9 +129,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
     return Math.round(((1 - 0.8) * 100)); // 20% savings
   };
 
-  // The ONE, CORRECT handleSubscribe function
   const handleSubscribe = async (tierName: string, priceId?: string) => {
-    // This part handles the "Free Trial" button
     if (tierName === 'Free Trial') {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -141,10 +137,9 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       } else {
         onSignUp?.();
       }
-      return; // Exit the function after handling free trial
+      return;
     }
 
-    // This part handles all PAID plans
     if (!priceId) {
       alert('Configuration error: This plan is missing a Price ID.');
       return;
@@ -154,17 +149,16 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
 
     if (!user) {
       alert("Please sign up or log in to subscribe to a paid plan.");
-      onSignUp?.(); // Open the sign-up/log-in modal
+      onSignUp?.();
       return;
     }
 
-    // Call the Stripe checkout function
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
-          priceId: priceId, // The priceId from the tier data
-          successUrl: `${window.location.origin}/create-capsule`, // Redirect to capsule creation on success
-          cancelUrl: window.location.href, // Return to the current page on cancellation
+          priceId: priceId,
+          successUrl: `${window.location.origin}/create-capsule`,
+          cancelUrl: window.location.href,
         },
       });
 
@@ -173,7 +167,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       }
 
       if (data.url) {
-        // Redirect the user to the Stripe Checkout page
         window.location.href = data.url;
       }
     } catch (e) {
@@ -185,7 +178,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
   return (
     <section id="pricing" className="section-padding bg-gray-50">
       <div className="container-max">
-        {/* The rest of the JSX remains the same, starting from the motion.div */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -200,7 +192,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
             Choose the plan that best fits your memory preservation needs.
           </p>
 
-          {/* Currency Selector */}
           <div className="flex justify-center mb-12">
             <div className="flex items-center space-x-4 bg-white rounded-none p-3 shadow-sm border border-gray-200">
               <span className="text-gray-500 text-sm font-medium uppercase tracking-wider">Currency:</span>
@@ -218,7 +209,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
             </div>
           </div>
 
-          {/* Billing Toggle */}
           <div className="flex items-center justify-center space-x-6 mb-16">
             <span className={`text-lg font-medium tracking-wide uppercase ${!isYearly ? 'text-gray-800' : 'text-gray-500'}`}>
               Monthly
@@ -244,7 +234,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
           </div>
         </motion.div>
 
-        {/* Time Capsule Plans */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -328,8 +317,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
             </motion.div>
           ))}
         </div>
-
-        {/* Music Licensing Section */}
+        
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -353,7 +341,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
             viewport={{ once: true }}
             className="pricing-card flex flex-col max-w-sm opacity-75 relative"
           >
-            {/* Coming Soon Overlay */}
             <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
               <div className="text-center">
                 <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
