@@ -148,37 +148,47 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       return;
     }
 
-    // User is logged in (including trial users), proceed with payment
+    // User is logged in, proceed with Stripe Checkout
     if (priceId) {
       try {
-        // This is where you would integrate with your payment system
-        // For now, we'll show an alert, but this should redirect to Stripe Checkout
-        alert(`Redirecting to payment for ${tierName} plan. This will be integrated with Stripe Checkout.`);
-        
-        // Example of what the Stripe integration would look like:
-        /*
-        const response = await fetch('/api/create-checkout-session', {
+        // Create Stripe Checkout session
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
+            'Authorization': `Bearer ${user.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
           },
           body: JSON.stringify({
-            priceId: isYearly ? priceId + '_yearly' : priceId + '_monthly',
-            successUrl: `${window.location.origin}/subscription?success=true`,
-            cancelUrl: `${window.location.origin}/#pricing`
+            priceId: isYearly ? `${priceId}_yearly` : `${priceId}_monthly`,
+            successUrl: `${window.location.origin}/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/#pricing`,
+            currency: selectedCurrency.code.toLowerCase()
           })
         });
         
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create checkout session');
+        }
+        
         const { url } = await response.json();
-        window.location.href = url;
-        */
+        
+        if (url) {
+          // Redirect to Stripe Checkout
+          window.location.href = url;
+        } else {
+          throw new Error('No checkout URL received');
+        }
       } catch (error) {
         console.error('Error creating checkout session:', error);
-        alert('Failed to start checkout process. Please try again.');
+        
+        // Show user-friendly error message
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        alert(`Failed to start checkout process: ${errorMessage}. Please try again or contact support.`);
       }
     } else {
-      alert('Payment integration coming soon!');
+      alert('This plan is not available for purchase at the moment. Please contact support.');
     }
   };
 
