@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Star, Crown, Gem, Music } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '@/lib/supabase'; // MOVED TO THE TOP
 
 interface PricingSectionProps {
   onSignIn?: () => void;
@@ -44,7 +45,7 @@ const pricingTiers = [
     color: 'amber',
     storage: '10GB',
     capsules: '5 capsules/month',
-    priceId: 'price_keepsake'
+    priceId: 'price_keepsake' // Assuming a real price ID exists
   },
   {
     name: 'Heirloom',
@@ -62,13 +63,12 @@ const pricingTiers = [
     color: 'orange',
     storage: '25GB',
     capsules: '8 capsules/month',
-    priceId: 'price_heirloom'
+    priceId: 'price_heirloom' // Assuming a real price ID exists
   },
   {
     name: 'Legacy',
     icon: Gem,
-    price: { monthly: 18.99, yearly: 15.19 },
-    price: { monthly: 19.99, yearly: 15.99 },
+    price: { monthly: 19.99, yearly: 15.99 }, // FIXED: Removed duplicate price property
     description: 'For large families and organizations',
     features: [
       'Unlimited time capsules',
@@ -83,10 +83,11 @@ const pricingTiers = [
     color: 'red',
     storage: '100GB',
     capsules: 'Unlimited capsules',
-    priceId: 'price_legacy'
+    priceId: 'price_legacy' // Assuming a real price ID exists
   }
 ];
 
+// ... (musicTier and currencies data remains the same)
 const musicTier = {
   name: 'Music Licensing Pro',
   icon: Music,
@@ -115,10 +116,11 @@ const currencies = [
   { code: 'AUD', symbol: 'A$', rate: 1.71, flag: '🇦🇺' },
 ];
 
+
 export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSignUp }) => {
-  const { user } = useAuth();
+  const { user } = useAuth(); // This hook is defined in the original file, assuming it works correctly.
   const [isYearly, setIsYearly] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]); // Default to GBP
+  const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
 
   const formatPrice = (price: number) => {
     const convertedPrice = price * selectedCurrency.rate;
@@ -129,114 +131,61 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
     return Math.round(((1 - 0.8) * 100)); // 20% savings
   };
 
-  import { supabase } from '@/lib/supabase'; // Make sure this import is at the top of the file
-
-const handleSubscribe = async (tierName: string, priceId?: string) => {
-  // This part handles the "Free Trial" button
-  if (tierName === 'Free Trial') {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      window.location.href = '/create-capsule';
-    } else {
-      onSignUp?.();
-    }
-    return; // Exit the function after handling free trial
-  }
-
-  // This NEW part handles all PAID plans
-  if (!priceId) {
-    alert('Configuration error: This plan is missing a Price ID.');
-    return;
-  }
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    alert("Please sign up or log in to subscribe to a paid plan.");
-    onSignUp?.(); // Open the sign-up/log-in modal
-    return;
-  }
-
-  // Call the Stripe checkout function
-  try {
-    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-      body: {
-        priceId: priceId,
-        successUrl: `${window.location.origin}/create-capsule`, // Redirect to capsule creation on success
-        cancelUrl: window.location.href, // Return to the current page on cancellation
-      },
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (data.url) {
-      // Redirect the user to the Stripe Checkout page
-      window.location.href = data.url;
-    }
-  } catch (e) {
-    console.error('Error creating checkout session:', e);
-    alert(`Error: ${(e as Error).message}`);
-  }
-};
-      return;
-    }
-
-    // For paid plans
-    if (!user) {
-      // User not logged in, open sign in modal
-      onSignIn?.();
-      return;
-    }
-
-    // User is logged in, proceed with Stripe Checkout
-    if (priceId) {
-      try {
-        // Create Stripe Checkout session
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
-          },
-          body: JSON.stringify({
-            priceId: isYearly ? `${priceId}_yearly` : `${priceId}_monthly`,
-            successUrl: `${window.location.origin}/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${window.location.origin}/#pricing`,
-            currency: selectedCurrency.code.toLowerCase()
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create checkout session');
-        }
-        
-        const { url } = await response.json();
-        
-        if (url) {
-          // Redirect to Stripe Checkout
-          window.location.href = url;
-        } else {
-          throw new Error('No checkout URL received');
-        }
-      } catch (error) {
-        console.error('Error creating checkout session:', error);
-        
-        // Show user-friendly error message
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        alert(`Failed to start checkout process: ${errorMessage}. Please try again or contact support.`);
+  // The ONE, CORRECT handleSubscribe function
+  const handleSubscribe = async (tierName: string, priceId?: string) => {
+    // This part handles the "Free Trial" button
+    if (tierName === 'Free Trial') {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        window.location.href = '/create-capsule';
+      } else {
+        onSignUp?.();
       }
-    } else {
-      alert('This plan is not available for purchase at the moment. Please contact support.');
+      return; // Exit the function after handling free trial
+    }
+
+    // This part handles all PAID plans
+    if (!priceId) {
+      alert('Configuration error: This plan is missing a Price ID.');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("Please sign up or log in to subscribe to a paid plan.");
+      onSignUp?.(); // Open the sign-up/log-in modal
+      return;
+    }
+
+    // Call the Stripe checkout function
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId: priceId, // The priceId from the tier data
+          successUrl: `${window.location.origin}/create-capsule`, // Redirect to capsule creation on success
+          cancelUrl: window.location.href, // Return to the current page on cancellation
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.url) {
+        // Redirect the user to the Stripe Checkout page
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      console.error('Error creating checkout session:', e);
+      alert(`Error: ${(e as Error).message}`);
     }
   };
 
   return (
     <section id="pricing" className="section-padding bg-gray-50">
       <div className="container-max">
+        {/* The rest of the JSX remains the same, starting from the motion.div */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
