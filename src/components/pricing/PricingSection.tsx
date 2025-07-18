@@ -165,6 +165,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       billingPeriod: isYearly ? 'yearly' : 'monthly',
       currency: selectedCurrency.code
     });
+
     try {
       // Get current session to ensure we have a valid token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -176,12 +177,17 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
         return;
       }
 
+      console.log('Making request to create-checkout-session with:', {
+        priceId,
+        successUrl: `${window.location.origin}/subscription?success=true`,
+        cancelUrl: window.location.href
+      });
+
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId: priceId,
           successUrl: `${window.location.origin}/subscription?success=true`,
-          cancelUrl: window.location.href,
-          currency: selectedCurrency.code.toLowerCase()
+          cancelUrl: window.location.href
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -189,9 +195,16 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       });
 
       if (error) {
-        console.error('Supabase function error:', error);
+        console.error('Supabase function error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
+
+      console.log('Function response:', data);
 
       if (data.url) {
         console.log('Redirecting to Stripe checkout:', data.url);
@@ -202,7 +215,21 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
-      alert(`Payment error: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Please try again or contact support.`);
+      
+      // More detailed error handling
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = (error as any).message;
+      }
+      
+      // Check if it's a specific Edge Function error
+      if (errorMessage.includes('Edge Function returned a non-2xx status code')) {
+        alert('Payment system is currently unavailable. This may be because:\n\n1. The Stripe integration is not yet configured\n2. The Edge Function needs to be deployed\n3. Environment variables are missing\n\nPlease contact support for assistance.');
+      } else {
+        alert(`Payment error: ${errorMessage}. Please try again or contact support.`);
+      }
     }
   };
 
