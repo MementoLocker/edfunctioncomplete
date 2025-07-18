@@ -78,7 +78,7 @@ Complete user journey from signup through payment processing to capsule scheduli
 
 ### Pre-Test Setup
 1. **Test Email**: Use a real email address you can access for testing
-2. **Test Payment**: Use Stripe test card `4242 4242 4242 4242` with any future expiry
+2. **Live Payment**: Prepare a real credit card for live transaction testing (will be refunded after verification)
 3. **Browser**: Use incognito/private browsing mode to simulate new user
 4. **Documentation**: Keep screenshots and notes of each step
 
@@ -141,10 +141,10 @@ Complete user journey from signup through payment processing to capsule scheduli
 4. **Verify**: Redirected to Stripe Checkout
 5. Fill in payment details:
    - **Email**: [your-test-email@domain.com]
-   - **Card**: 4242 4242 4242 4242
-   - **Expiry**: Any future date
-   - **CVC**: Any 3 digits
-   - **Name**: Test User
+   - **Card**: [Your real credit card number]
+   - **Expiry**: [Real expiry date]
+   - **CVC**: [Real CVC code]
+   - **Name**: [Real cardholder name]
 6. Complete payment
 7. **Verify**: Redirected back to success page
 8. **Verify**: Subscription status updates in account
@@ -156,6 +156,22 @@ Complete user journey from signup through payment processing to capsule scheduli
 4. **Verify**: User's subscription_status updated to "active"
 5. **Verify**: stripe_customer_id and stripe_subscription_id populated
 
+#### Step 6a: Transaction Refund (Post-Test Cleanup)
+**IMPORTANT**: Complete this step immediately after confirming the payment test is successful
+
+1. In Stripe Dashboard → Payments, locate the test transaction
+2. Click on the payment to open details
+3. Click "Refund" button
+4. Select "Full refund" 
+5. Add refund reason: "Launch testing - full system verification"
+6. Confirm the refund
+7. **Verify**: Refund shows as "Succeeded" in Stripe
+8. **Verify**: Customer receives refund confirmation email
+9. **Note**: Refund may take 5-10 business days to appear on customer's statement
+
+**Database Cleanup**: 
+- User's subscription_status may remain "active" for testing purposes
+- Or manually update to "cancelled" in Supabase if needed for clean test state
 ---
 
 ### Test Scenario 4: Advanced Features Testing
