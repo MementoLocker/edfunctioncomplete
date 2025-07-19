@@ -23,22 +23,17 @@ serve(async (req) => {
       }
     )
 
-    // Get the user from the JWT token
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    const { priceId, successUrl, cancelUrl } = await req.json()
+    const { priceId } = await req.json()
+    const { origin } = new URL(req.url)
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
@@ -55,27 +50,22 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      // FIXED: This now points to a page that exists.
+      success_url: `${origin}/create-capsule`,
+      cancel_url: `${origin}/#pricing`,
       metadata: {
         userId: user.id,
       },
     })
 
-    return new Response(
-      JSON.stringify({ url: session.url }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
+    return new Response(JSON.stringify({ url: session.url }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
   }
 })
