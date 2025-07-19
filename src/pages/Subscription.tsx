@@ -56,7 +56,7 @@ export const Subscription: React.FC = () => {
     // Fallback to subscription_status
     switch (profile.subscription_status) {
       case 'active':
-        return 'Active Plan';
+        return 'Premium Plan';
       case 'legacy':
         return 'Legacy Plan';
       case 'trial':
@@ -530,7 +530,7 @@ export const Subscription: React.FC = () => {
             </motion.div>
 
             {/* Legacy Plan Benefits */}
-            {profile?.subscription_status === 'legacy' && (
+            {(profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -589,6 +589,125 @@ export const Subscription: React.FC = () => {
               </motion.div>
             )}
 
+            {/* Keepsake Plan Benefits */}
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'keepsake') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Star className="w-6 h-6 mr-3 text-amber-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Keepsake Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">5 Time Capsules per Month</div>
+                        <div className="text-sm text-gray-500">Perfect for individuals</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">10GB Storage</div>
+                        <div className="text-sm text-gray-500">Secure cloud storage</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">All Customization Features</div>
+                        <div className="text-sm text-gray-500">Full design control</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Customer Support</div>
+                        <div className="text-sm text-gray-500">Email support included</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Heirloom Plan Benefits */}
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'heirloom') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Crown className="w-6 h-6 mr-3 text-orange-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Heirloom Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">8 Time Capsules per Month</div>
+                        <div className="text-sm text-gray-500">Great for families</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">25GB Storage</div>
+                        <div className="text-sm text-gray-500">Generous storage capacity</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">All Customization Features</div>
+                        <div className="text-sm text-gray-500">Full design control</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Customer Support</div>
+                        <div className="text-sm text-gray-500">Priority email support</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
             {/* Trial Benefits */}
             {profile?.subscription_status === 'trial' && (
               <motion.div
@@ -621,7 +740,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Advanced Scheduling - Sponsors Section */}
-            {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && (
+            {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

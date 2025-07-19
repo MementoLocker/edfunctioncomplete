@@ -103,9 +103,27 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session, supabas
 
     // Get the price ID from the session to determine the plan type
     let priceId = null;
-    if (session.line_items && session.line_items.data && session.line_items.data[0]) {
-      priceId = session.line_items.data[0].price?.id;
+    
+    // Try to get price ID from line items first
+    if (session.line_items?.data?.[0]?.price?.id) {
+      priceId = session.line_items.data[0].price.id;
+    } else if (session.subscription) {
+      // If line items not available, fetch from subscription
+      try {
+        const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+          apiVersion: '2023-10-16',
+        });
+        
+        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+        if (subscription.items?.data?.[0]?.price?.id) {
+          priceId = subscription.items.data[0].price.id;
+        }
+      } catch (error) {
+        console.error('Error fetching subscription details:', error);
+      }
     }
+
+    console.log(`Price ID for user ${userId}: ${priceId}`);
 
     // Update user's subscription status in the profiles table
     const { error } = await supabase
@@ -124,7 +142,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session, supabas
       throw error
     }
 
-    console.log(`Successfully updated subscription for user ${userId}`)
+    console.log(`Successfully updated subscription for user ${userId} with price ID ${priceId}`)
   } catch (error) {
     console.error('Error handling successful payment:', error)
     throw error
@@ -145,11 +163,20 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription, supab
       status = 'cancelled'
     }
 
+    // Get the price ID from the subscription
+    let priceId = null;
+    if (subscription.items?.data?.[0]?.price?.id) {
+      priceId = subscription.items.data[0].price.id;
+    }
+
+    console.log(`Updating subscription ${subscription.id} with status ${status} and price ID ${priceId}`);
+
     // Update subscription status based on Stripe subscription ID
     const { error } = await supabase
       .from('profiles')
       .update({
         subscription_status: status,
+        stripe_price_id: priceId,
         updated_at: new Date().toISOString(),
       })
       .eq('stripe_subscription_id', subscription.id)
@@ -159,7 +186,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription, supab
       throw error
     }
 
-    console.log(`Updated subscription status to ${status} for subscription ${subscription.id}`)
+    console.log(`Updated subscription status to ${status} with price ID ${priceId} for subscription ${subscription.id}`)
   } catch (error) {
     console.error('Error handling subscription update:', error)
     throw error
