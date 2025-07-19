@@ -141,7 +141,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
     }
 
     if (!user) {
-      alert("Please sign up or log in to subscribe.");
+      console.log("User not authenticated, showing signup modal");
       onSignUp?.();
       return;
     }
@@ -152,19 +152,16 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       return;
     }
 
-    // Temporary fallback while Edge Function is being configured
-    alert(`Stripe integration is being configured. You selected: ${tierName}\nPrice ID: ${priceId}\n\nPlease contact support to complete your subscription.`);
-    return;
-
-    // Original Edge Function code (commented out temporarily)
-    /*
     try {
+      console.log('Starting checkout process for:', tierName, 'Price ID:', priceId);
+      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('User session not found. Please log in again.');
 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId: priceId,
+      console.log('Calling create-checkout-session Edge Function...');
           successUrl: `${window.location.origin}/subscription?success=true`,
           cancelUrl: window.location.href
         },
@@ -174,8 +171,12 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       });
 
       if (error) throw error;
+        console.error('Edge Function error:', error);
 
+      console.log('Edge Function response:', data);
+      
       if (data.url) {
+        console.log('Redirecting to Stripe Checkout:', data.url);
         window.location.href = data.url;
       } else {
         throw new Error('No checkout URL received from payment service');
@@ -188,7 +189,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       }
       alert(`Payment error: ${errorMessage}. Please try again or contact support.`);
     }
-    */
   };
 
   return (
