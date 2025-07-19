@@ -410,3 +410,14 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
                 // The Music Pro plan is not yet active
                 onClick={() => handleSubscribe(musicTier.name, musicTier.priceId)}
                 disabled={true}
+                className="w-full py-4 px-6 rounded-none font-medium transition-all duration-500 tracking-wide uppercase text-sm btn-secondary opacity-50 cursor-not-allowed"
+              >
+                {musicTier.cta}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
