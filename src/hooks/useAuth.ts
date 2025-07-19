@@ -7,29 +7,58 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setLoading(false)
-      
-      // Link sponsor account if user just logged in
-      if (currentUser) {
-        linkSponsorAccount(currentUser.id, currentUser.email);
+    // Get initial session with error handling for invalid refresh tokens
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          // If there's an error getting the session, clear any invalid data
+          await supabase.auth.signOut();
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        setLoading(false);
+        
+        // Link sponsor account if user just logged in
+        if (currentUser) {
+          linkSponsorAccount(currentUser.id, currentUser.email);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        // Clear any invalid session data
+        await supabase.auth.signOut();
+        setUser(null);
+        setLoading(false);
       }
-    })
+    };
+    
+    initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setLoading(false)
-      
-      // Link sponsor account if user just logged in
-      if (currentUser) {
-        linkSponsorAccount(currentUser.id, currentUser.email);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      try {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        setLoading(false);
+        
+        // Link sponsor account if user just logged in
+        if (currentUser) {
+          linkSponsorAccount(currentUser.id, currentUser.email);
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        // Clear any invalid session data
+        await supabase.auth.signOut();
+        setUser(null);
+        setLoading(false);
       }
     })
 
