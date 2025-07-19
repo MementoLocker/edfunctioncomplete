@@ -101,6 +101,12 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session, supabas
 
     console.log(`Processing successful payment for user: ${userId}`)
 
+    // Get the price ID from the session to determine the plan type
+    let priceId = null;
+    if (session.line_items && session.line_items.data && session.line_items.data[0]) {
+      priceId = session.line_items.data[0].price?.id;
+    }
+
     // Update user's subscription status in the profiles table
     const { error } = await supabase
       .from('profiles')
@@ -108,6 +114,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session, supabas
         subscription_status: 'active',
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
+        stripe_price_id: priceId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
