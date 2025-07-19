@@ -77,7 +77,7 @@ export const useAuth = () => {
           setUser(extendedUser);
           
           // Link sponsor account if user just logged in
-          linkSponsorAccount(session.user.id, session.user.email);
+          await linkSponsorAccount(session.user.id, session.user.email);
         } else {
           setUser(null);
         }
@@ -104,7 +104,7 @@ export const useAuth = () => {
           setUser(extendedUser);
           
           // Link sponsor account if user just logged in
-          linkSponsorAccount(session.user.id, session.user.email);
+          await linkSponsorAccount(session.user.id, session.user.email);
         } else {
           setUser(null);
         }
