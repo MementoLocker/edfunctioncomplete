@@ -152,6 +152,12 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       return;
     }
 
+    // Temporary fallback while Edge Function is being configured
+    alert(`Stripe integration is being configured. You selected: ${tierName}\nPrice ID: ${priceId}\n\nPlease contact support to complete your subscription.`);
+    return;
+
+    // Original Edge Function code (commented out temporarily)
+    /*
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('User session not found. Please log in again.');
@@ -182,6 +188,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       }
       alert(`Payment error: ${errorMessage}. Please try again or contact support.`);
     }
+    */
   };
 
   return (
