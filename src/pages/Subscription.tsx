@@ -22,12 +22,41 @@ export const Subscription: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
 
+  // Map Stripe Price IDs to plan names
+  const getPlanNameFromPriceId = (priceId: string) => {
+    const priceIdMap: { [key: string]: string } = {
+      'price_1RmO6mBOaon0OwkPSX25QVac': 'keepsake',
+      'price_1RmO7rBOaon0OwkPc1i7XUW2': 'heirloom', 
+      'price_1RmO8nBOaon0OwkPk6qfS5RE': 'legacy',
+      'price_1RmO9UBOaon0OwkPqJ8cIMZA': 'music'
+    };
+    return priceIdMap[priceId] || 'unknown';
+  };
+
   const getSubscriptionStatus = () => {
     if (!profile) return '30-Day Free Trial';
     
+    // If we have a stripe_price_id, use that to determine the plan
+    if (profile.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      switch (planName) {
+        case 'keepsake':
+          return 'Keepsake Plan';
+        case 'heirloom':
+          return 'Heirloom Plan';
+        case 'legacy':
+          return 'Legacy Plan';
+        case 'music':
+          return 'Music Pro Plan';
+        default:
+          return 'Premium Plan';
+      }
+    }
+    
+    // Fallback to subscription_status
     switch (profile.subscription_status) {
       case 'active':
-        return 'Premium Plan';
+        return 'Active Plan';
       case 'legacy':
         return 'Legacy Plan';
       case 'trial':
@@ -262,6 +291,20 @@ export const Subscription: React.FC = () => {
   };
 
   const getStorageLimit = () => {
+    if (profile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      switch (planName) {
+        case 'keepsake':
+          return '10GB';
+        case 'heirloom':
+          return '25GB';
+        case 'legacy':
+          return '100GB';
+        default:
+          return '25GB';
+      }
+    }
+    
     switch (profile?.subscription_status) {
       case 'active':
         return '25GB';
@@ -275,6 +318,20 @@ export const Subscription: React.FC = () => {
   };
 
   const getCapsuleLimit = () => {
+    if (profile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      switch (planName) {
+        case 'keepsake':
+          return '5 per month';
+        case 'heirloom':
+          return '8 per month';
+        case 'legacy':
+          return 'Unlimited';
+        default:
+          return '8 per month';
+      }
+    }
+    
     switch (profile?.subscription_status) {
       case 'legacy':
         return 'Unlimited';
