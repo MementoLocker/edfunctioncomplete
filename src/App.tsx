@@ -186,9 +186,9 @@ function App() {
 
   const userWithProfile = user ? {
     ...user,
-    name: userProfile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    name: user.profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
     email: user.email!,
-    avatar_url: userProfile?.avatar_url
+    avatar_url: user.profile?.avatar_url
   } : null;
 
   return (
