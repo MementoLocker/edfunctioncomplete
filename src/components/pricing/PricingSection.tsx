@@ -161,7 +161,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId: priceId,
-          successUrl: `${window.location.origin}/subscription?success=true`,
+          successUrl: `${window.location.origin}/payment-success`,
           cancelUrl: window.location.href
         },
         headers: {

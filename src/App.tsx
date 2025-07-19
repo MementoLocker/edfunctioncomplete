@@ -22,6 +22,7 @@ import { MyCapsules } from './pages/MyCapsules';
 import { ClientReviews } from './pages/ClientReviews';
 import { MusicLibrary } from './pages/MusicLibrary';
 import { SponsorDashboard } from './pages/SponsorDashboard';
+import { PaymentSuccess } from './pages/PaymentSuccess';
 import { useAuth } from './hooks/useAuth';
 import { signOut, supabase } from './lib/supabase';
 
@@ -214,6 +215,7 @@ function App() {
             <Route path="/leave-review" element={<LeaveReview />} />
             <Route path="/capsule-examples" element={<CapsuleExamples />} />
             <Route path="/subscription" element={<Subscription />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/my-capsules" element={<MyCapsules />} />
             <Route path="/client-reviews" element={<ClientReviews />} />
             <Route path="/sponsor-dashboard" element={<SponsorDashboard />} />
