@@ -58,15 +58,13 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
-    // Get initial session with error handling for invalid refresh tokens
+    // Get initial session
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Session error:', error);
-          // If there's an error getting the session, clear any invalid data
-          await supabase.auth.signOut();
           setUser(null);
           setLoading(false);
           return;
@@ -75,9 +73,6 @@ export const useAuth = () => {
         if (session?.user) {
           const extendedUser = await createExtendedUser(session.user);
           setUser(extendedUser);
-          
-          // Link sponsor account if user just logged in
-          await linkSponsorAccount(session.user.id, session.user.email);
         } else {
           setUser(null);
         }
@@ -85,8 +80,6 @@ export const useAuth = () => {
         setLoading(false);
       } catch (error) {
         console.error('Auth initialization error:', error);
-        // Clear any invalid session data
-        await supabase.auth.signOut();
         setUser(null);
         setLoading(false);
       }
@@ -102,9 +95,6 @@ export const useAuth = () => {
         if (session?.user) {
           const extendedUser = await createExtendedUser(session.user);
           setUser(extendedUser);
-          
-          // Link sponsor account if user just logged in
-          await linkSponsorAccount(session.user.id, session.user.email);
         } else {
           setUser(null);
         }
@@ -112,8 +102,6 @@ export const useAuth = () => {
         setLoading(false);
       } catch (error) {
         console.error('Auth state change error:', error);
-        // Clear any invalid session data
-        await supabase.auth.signOut();
         setUser(null);
         setLoading(false);
       }
@@ -131,42 +119,6 @@ export const useAuth = () => {
       } catch (error) {
         console.error('Error refreshing user profile:', error);
       }
-    }
-  };
-
-  // Function to link sponsor account when user logs in
-  const linkSponsorAccount = async (userId: string, userEmail: string | undefined) => {
-    if (!userEmail) return;
-    
-    try {
-      // Check if this email exists as a sponsor_email with no linked user_id
-      const { data, error } = await supabase
-        .from('sponsors')
-        .select('id')
-        .eq('sponsor_email', userEmail.toLowerCase())
-        .is('sponsor_user_id', null);
-        
-      if (error) {
-        console.error('Error checking sponsor entries:', error);
-        return;
-      }
-        
-      // If found, link all matching entries to this user
-      if (data && data.length > 0) {
-        for (const sponsorEntry of data) {
-          const { error: updateError } = await supabase
-            .from('sponsors')
-            .update({ sponsor_user_id: userId })
-            .eq('id', sponsorEntry.id);
-            
-          if (updateError) {
-            console.error('Error linking sponsor account:', updateError);
-          }
-        }
-        console.log(`Successfully linked sponsor account for ${userEmail}`);
-      }
-    } catch (error) {
-      console.error('Error in linkSponsorAccount:', error);
     }
   };
 
