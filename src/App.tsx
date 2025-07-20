@@ -248,8 +248,8 @@ function App() {
           onClose={() => setShowWelcomeModal(false)}
           onUpgrade={handleUpgradeClick}
         />
-        </AuthProvider>
       </Router>
+    </AuthProvider>
   );
 }
 
