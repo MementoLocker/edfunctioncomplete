@@ -158,58 +158,6 @@ function App() {
     }
   };
 
-  const handleUpgradeClick = () => {
-    setShowWelcomeModal(false);
-    // Navigate to pricing section
-    setTimeout(() => {
-      window.location.href = '/#pricing';
-    }, 100);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2" style={{ borderColor: '#C0A172' }}></div>
-      </div>
-    );
-  }
-
-  const userWithProfile = user ? {
-    ...user,
-    name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
-    email: user.email!,
-    avatar_url: profile?.avatar_url
-  } : null;
-
-  return (
-    <AuthProvider>
-      <Router>
-        <ScrollToTop />
-        <div className="min-h-screen flex flex-col bg-gray-50">
-          <Header 
-            user={userWithProfile}
-            onSignIn={handleSignIn} 
-            onSignOut={handleSignOut}
-          />
-          
-          <main className="flex-1">
-            <Routes>
-              <Route 
-    <Router>
-      <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <Header 
-          user={userWithProfile}
-          onSignIn={handleSignIn} 
-          onSignOut={handleSignOut}
-        />
-        
-        <main className="flex-1">
-          <Routes>
-            <Route 
-              path="/" 
-              element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} 
-            />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<FAQ />} />
@@ -247,7 +195,6 @@ function App() {
         />
       </div>
     </Router>
-  )
   );
 }
 
