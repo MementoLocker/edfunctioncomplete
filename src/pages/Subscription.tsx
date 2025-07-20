@@ -34,6 +34,7 @@ export const Subscription: React.FC = () => {
   };
 
   const getSubscriptionStatus = () => {
+    console.log('Getting subscription status for profile:', userProfile); // Debug log
     if (!userProfile) return '30-Day Free Trial';
     
     // If we have a stripe_price_id, use that to determine the plan
@@ -76,21 +77,30 @@ export const Subscription: React.FC = () => {
 
   const fetchUserProfile = async () => {
     if (!user) return;
+    
+    console.log('Fetching profile for user:', user.id); // Debug log
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+      
+      console.log('Profile data from database:', data); // Debug log
       if (error) throw error;
       setUserProfile(data);
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // If profile doesn't exist, create a default one
+      if (error.code === 'PGRST116') {
+        console.log('Profile not found, user may need to refresh or profile creation failed');
+      }
     }
   };
 
   useEffect(() => {
     if (user) {
+      console.log('User changed, fetching profile...'); // Debug log
       fetchUserProfile();
     }
   }, [user]);
