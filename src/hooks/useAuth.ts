@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []); // FIXED: This was missing its closing brackets in the previous version
+  }, []);
 
   // Define the signOut function
   const signOut = async () => {

@@ -147,4 +147,24 @@ export const Subscription: React.FC = () => {
   }
 
   if (!user) {
-    //
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Please Sign In</h2>
+          <p className="text-gray-600">You need to be signed in to view your subscription.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Subscription</h1>
+        <div className="bg-white rounded-lg shadow p-6">
+          <p>Subscription content goes here...</p>
+        </div>
+      </div>
+    </div>
+  );
+};
