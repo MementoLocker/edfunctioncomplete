@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { AuthProvider } from './hooks/useAuth';
 import Header from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
@@ -196,45 +195,43 @@ function App() {
           <main className="flex-1">
             <Routes>
               <Route 
-                path="/" 
-                element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} 
-              />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/create-capsule" element={<CreateCapsule />} />
-              <Route path="/custom-song" element={<CustomSong />} />
-              <Route path="/leave-review" element={<LeaveReview />} />
-              <Route path="/capsule-examples" element={<CapsuleExamples />} />
-              <Route path="/subscription" element={<Subscription />} />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/my-capsules" element={<MyCapsules />} />
-              <Route path="/client-reviews" element={<ClientReviews />} />
-              <Route path="/sponsor-dashboard" element={<SponsorDashboard />} />
-              <Route path="/music-library" element={<MusicLibrary />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/copyright" element={<Copyright />} />
-              <Route path="/security" element={<Security />} />
-            </Routes>
-          </main>
-          
-          <Footer onSignIn={handleSignIn} />
-          <CookieConsent />
-          
-          <AuthModal
-            isOpen={authModal.isOpen}
-            onClose={() => setAuthModal({ ...authModal, isOpen: false })}
-            mode={authModal.mode}
-            onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
-          />
-          
-          <WelcomeModal
-            isOpen={showWelcomeModal}
-            onClose={() => setShowWelcomeModal(false)}
-            onUpgrade={handleUpgradeClick}
-          />
-        </div>
+    <Router>
+      <ScrollToTop />
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header 
+          user={userWithProfile}
+          onSignIn={handleSignIn} 
+          onSignOut={handleSignOut}
+        />
+        
+        <main className="flex-1">
+          <Routes>
+            <Route 
+              path="/" 
+              element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} 
+            />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/create-capsule" element={<CreateCapsule />} />
+            <Route path="/custom-song" element={<CustomSong />} />
+            <Route path="/leave-review" element={<LeaveReview />} />
+            <Route path="/capsule-examples" element={<CapsuleExamples />} />
+            <Route path="/subscription" element={<Subscription />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/my-capsules" element={<MyCapsules />} />
+            <Route path="/client-reviews" element={<ClientReviews />} />
+            <Route path="/sponsor-dashboard" element={<SponsorDashboard />} />
+            <Route path="/music-library" element={<MusicLibrary />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/copyright" element={<Copyright />} />
+            <Route path="/security" element={<Security />} />
+          </Routes>
+        </main>
+        
+        <Footer onSignIn={handleSignIn} />
+        <CookieConsent />
         
         <AuthModal
           isOpen={authModal.isOpen}
@@ -248,8 +245,8 @@ function App() {
           onClose={() => setShowWelcomeModal(false)}
           onUpgrade={handleUpgradeClick}
         />
-      </Router>
-    </AuthProvider>
+      </div>
+    </Router>
   );
 }
 
