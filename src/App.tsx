@@ -154,8 +154,23 @@ function App() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    setUserProfile(null);
+    try {
+      const { error } = await signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        alert('Failed to sign out. Please try again.');
+        return;
+      }
+      
+      // Clear local state
+      setUserProfile(null);
+      
+      // Redirect to home page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      alert('Failed to sign out. Please try again.');
+    }
   };
 
   const handleGetStarted = () => {

@@ -216,7 +216,9 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
                         </Link>
                         <button
                           onClick={() => {
-                            onSignOut?.();
+                            if (onSignOut) {
+                              onSignOut();
+                            }
                             setIsUserMenuOpen(false);
                           }}
                           className="flex items-center w-full px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -336,7 +338,9 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
                       </Link>
                       <button
                         onClick={() => {
-                          onSignOut?.();
+                          if (onSignOut) {
+                            onSignOut();
+                          }
                           setIsMenuOpen(false);
                         }}
                         className="flex items-center w-full px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors rounded-none"
