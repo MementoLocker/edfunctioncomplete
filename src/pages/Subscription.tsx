@@ -21,6 +21,7 @@ export const Subscription: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
   // Map Stripe Price IDs to plan names
   const getPlanNameFromPriceId = (priceId: string) => {
@@ -185,8 +186,43 @@ export const Subscription: React.FC = () => {
     navigate('/#pricing');
   };
 
-  const handleCancelSubscription = () => {
-    alert('Cancel subscription functionality will be connected to Stripe customer portal.');
+  const handleCancelSubscription = async () => {
+    if (!profile?.stripe_customer_id) {
+      triggerToast('No active subscription found to cancel.', 'error');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your current billing period.')) {
+      return;
+    }
+
+    setCancellingSubscription(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('User session not found. Please log in again.');
+
+      const { data, error } = await supabase.functions.invoke('create-billing-portal', {
+        body: {
+          customerId: profile.stripe_customer_id
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No billing portal URL received');
+      }
+    } catch (error) {
+      console.error('Error accessing billing portal:', error);
+      triggerToast('Failed to access billing portal. Please contact support.', 'error');
+    } finally {
+      setCancellingSubscription(false);
+    }
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -509,22 +545,386 @@ export const Subscription: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button
-                    onClick={handleUpgradeClick}
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 hover:shadow-lg"
-                  >
-                    {profile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
-                  </button>
-                  
-                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <button
-                      onClick={handleCancelSubscription}
-                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300"
+                      onClick={handleUpgradeClick}
+                      className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 hover:shadow-lg"
                     >
-                      Manage Billing
+                      {profile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
                     </button>
+                    
+                    {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && (
+                      <button
+                        onClick={handleCancelSubscription}
+                        disabled={cancellingSubscription}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {cancellingSubscription ? 'Opening Portal...' : 'Manage Billing'}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Cancel Subscription Button for Paid Users */}
+                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || 
+                    (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) !== 'unknown')) && (
+                    <div className="border-t border-gray-200 pt-4">
+                      <button
+                        onClick={handleCancelSubscription}
+                        disabled={cancellingSubscription}
+                        className="w-full bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 border border-red-200 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      >
+                        {cancellingSubscription ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-700 mr-2"></div>
+                            Opening Billing Portal...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="w-5 h-5 mr-2" />
+                            Cancel Subscription
+                          </>
+                        )}
+                      </button>
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        You'll retain access until the end of your current billing period
+                      </p>
+                    </div>
                   )}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Legacy Plan Benefits */}
+            {(profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Crown className="w-6 h-6 mr-3 text-purple-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Legacy Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Infinity className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Unlimited Time Capsules</div>
+                        <div className="text-sm text-gray-500">Create as many as you need</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">100GB Storage</div>
+                        <div className="text-sm text-gray-500">Premium storage capacity</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Advanced Scheduling</div>
+                        <div className="text-sm text-gray-500">Modify delivery dates anytime</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <Music className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Music Library Access</div>
+                        <div className="text-sm text-gray-500">Coming soon - Full access included</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Keepsake Plan Benefits */}
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'keepsake') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Star className="w-6 h-6 mr-3 text-amber-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Keepsake Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">5 Time Capsules per Month</div>
+                        <div className="text-sm text-gray-500">Perfect for individuals</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">10GB Storage</div>
+                        <div className="text-sm text-gray-500">Secure cloud storage</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">All Customization Features</div>
+                        <div className="text-sm text-gray-500">Full design control</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Customer Support</div>
+                        <div className="text-sm text-gray-500">Email support included</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Heirloom Plan Benefits */}
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'heirloom') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Crown className="w-6 h-6 mr-3 text-orange-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Heirloom Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">8 Time Capsules per Month</div>
+                        <div className="text-sm text-gray-500">Great for families</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">25GB Storage</div>
+                        <div className="text-sm text-gray-500">Generous storage capacity</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">All Customization Features</div>
+                        <div className="text-sm text-gray-500">Full design control</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Customer Support</div>
+                        <div className="text-sm text-gray-500">Priority email support</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            {/* Trial Benefits */}
+            {profile?.subscription_status === 'trial' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <h3 className="text-xl font-serif font-medium text-gray-800 mb-6" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    Your Free Trial Includes
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                      'Full design preview mode',
+                      'Upload and organize content',
+                      'Test all customization features',
+                      'Send 1 time capsule',
+                      '5GB secure storage',
+                      '30-day trial period'
+                    ].map((benefit, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        <span className="text-gray-600">{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Advanced Scheduling - Sponsors Section */}
+            {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Shield className="w-6 h-6 mr-3 text-amber-500" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Advanced Scheduling
+                    </h3>
+                  </div>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                    <h4 className="font-semibold text-amber-800 mb-2">Sponsor Management</h4>
+                    <p className="text-amber-700 text-sm">
+                      Designate trusted individuals who can modify delivery dates and recipients of your time capsules. 
+                      Perfect for uncertain future events or when dealing with changing circumstances.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleAddSponsor} className="mb-6">
+                    <div className="flex gap-3">
+                      <div className="flex-1 relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type="email"
+                          className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300"
+                          placeholder="sponsor@example.com"
+                          value={sponsorEmail}
+                          onChange={(e) => setSponsorEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={addingSponsor}
+                        className="bg-amber-500 hover:bg-amber-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {addingSponsor ? 'Adding...' : 'Add Sponsor'}
+                      </button>
+                    </div>
+                  </form>
+
+                  {sponsorsList.length > 0 ? (
+                    <div>
+                      <h4 className="text-lg font-medium text-gray-700 mb-4">
+                        Current Sponsors ({sponsorsList.length})
+                      </h4>
+                      <div className="space-y-3">
+                        {sponsorsList.map((sponsor) => (
+                          <div key={sponsor.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                            <div className="flex items-center space-x-3">
+                              {sponsor.sponsor_user_id ? (
+                                <UserCheck className="w-5 h-5 text-green-500" />
+                              ) : (
+                                <UserX className="w-5 h-5 text-amber-500" />
+                              )}
+                              <div>
+                                <span className="text-gray-800 font-medium">{sponsor.sponsor_email}</span>
+                                <div className="text-sm text-gray-500">
+                                  {sponsor.sponsor_user_id ? (
+                                    <span className="text-green-600">✓ Account Linked</span>
+                                  ) : (
+                                    <span className="text-amber-600">⏳ Pending Setup</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveSponsor(sponsor.id)}
+                              disabled={removingSponsor === sponsor.id}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {removingSponsor === sponsor.id ? (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500"></div>
+                              ) : (
+                                <Trash2 className="w-5 h-5" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <UserX className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="font-medium">No sponsors added yet</p>
+                      <p className="text-sm">Add trusted individuals to manage your capsule delivery details</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Customer Support Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-serif font-medium text-gray-800 mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Need Help?
+                    </h3>
+                    <p className="text-gray-600">
+                      Our support team is here to help with any questions or issues you may have.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleContactSupport}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 hover:shadow-lg flex items-center space-x-2"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span>Contact Support</span>
+                  </button>
                 </div>
               </div>
             </motion.div>
