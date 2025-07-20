@@ -158,6 +158,28 @@ function App() {
     }
   };
 
+  const handleUpgradeClick = () => {
+    window.location.href = '/subscription';
+  };
+
+  return (
+    <Router>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <ScrollToTop />
+        
+        <Header
+          user={user}
+          profile={profile}
+          loading={loading}
+          onSignIn={handleSignIn}
+          onSignUp={handleSignUp}
+          onSignOut={handleSignOut}
+          onGetStarted={handleGetStarted}
+        />
+        
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home onGetStarted={handleGetStarted} />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<FAQ />} />
