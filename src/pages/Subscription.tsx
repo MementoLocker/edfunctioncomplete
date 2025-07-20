@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ToastNotification } from '../components/ToastNotification';
 
 export const Subscription: React.FC = () => {
-  const { user, refreshUserProfile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -20,6 +20,7 @@ export const Subscription: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Map Stripe Price IDs to plan names
   const getPlanNameFromPriceId = (priceId: string) => {
@@ -33,11 +34,11 @@ export const Subscription: React.FC = () => {
   };
 
   const getSubscriptionStatus = () => {
-    if (!user?.profile) return '30-Day Free Trial';
+    if (!userProfile) return '30-Day Free Trial';
     
     // If we have a stripe_price_id, use that to determine the plan
-    if (user.profile.stripe_price_id) {
-      const planName = getPlanNameFromPriceId(user.profile.stripe_price_id);
+    if (userProfile.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
       switch (planName) {
         case 'keepsake':
           return 'Keepsake Plan';
@@ -53,7 +54,7 @@ export const Subscription: React.FC = () => {
     }
     
     // Fallback to subscription_status
-    switch (user.profile.subscription_status) {
+    switch (userProfile.subscription_status) {
       case 'active':
         return 'Premium Plan';
       case 'legacy':
@@ -73,23 +74,41 @@ export const Subscription: React.FC = () => {
     setShowToast(true);
   };
 
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   useEffect(() => {
-    if (user?.profile) {
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (userProfile) {
       calculateTrialDays();
-      if (user.profile.subscription_status === 'active') {
+      if (userProfile.subscription_status === 'active') {
         fetchSponsors();
       }
       setLoading(false);
-    } else if (user && !user.profile) {
-      // User is authenticated but profile is not loaded yet
-      setLoading(true);
     }
-  }, [user, location.pathname]);
+  }, [userProfile, location.pathname]);
 
   const calculateTrialDays = () => {
-    if (user?.profile?.trial_end_date) {
+    if (userProfile?.trial_end_date) {
       try {
-        const endDate = new Date(user.profile.trial_end_date);
+        const endDate = new Date(userProfile.trial_end_date);
         const today = new Date();
         const diffTime = endDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -215,7 +234,7 @@ export const Subscription: React.FC = () => {
       }
 
       // Refresh the user profile data
-      await refreshUserProfile();
+      await fetchUserProfile();
     } catch (error: any) {
       alert('Error uploading avatar: ' + error.message);
     } finally {
@@ -253,9 +272,9 @@ export const Subscription: React.FC = () => {
   }
 
   const getSubscriptionColor = () => {
-    if (!user?.profile) return 'text-gray-600';
+    if (!userProfile) return 'text-gray-600';
     
-    switch (user.profile.subscription_status) {
+    switch (userProfile.subscription_status) {
       case 'active':
         return 'text-green-600';
       case 'legacy':
@@ -270,11 +289,11 @@ export const Subscription: React.FC = () => {
   };
 
   const getNextPaymentDate = () => {
-    if (user?.profile?.subscription_status === 'legacy') {
+    if (userProfile?.subscription_status === 'legacy') {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       return nextMonth.toLocaleDateString();
-    } else if (user?.profile?.subscription_status === 'active') {
+    } else if (userProfile?.subscription_status === 'active') {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       return nextMonth.toLocaleDateString();
@@ -283,8 +302,8 @@ export const Subscription: React.FC = () => {
   };
 
   const getStorageLimit = () => {
-    if (user?.profile?.stripe_price_id) {
-      const planName = getPlanNameFromPriceId(user.profile.stripe_price_id);
+    if (userProfile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
       switch (planName) {
         case 'keepsake':
           return '10GB';
@@ -297,7 +316,7 @@ export const Subscription: React.FC = () => {
       }
     }
     
-    switch (user?.profile?.subscription_status) {
+    switch (userProfile?.subscription_status) {
       case 'active':
         return '25GB';
       case 'legacy':
@@ -310,8 +329,8 @@ export const Subscription: React.FC = () => {
   };
 
   const getCapsuleLimit = () => {
-    if (user?.profile?.stripe_price_id) {
-      const planName = getPlanNameFromPriceId(user.profile.stripe_price_id);
+    if (userProfile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
       switch (planName) {
         case 'keepsake':
           return '5 per month';
@@ -324,7 +343,7 @@ export const Subscription: React.FC = () => {
       }
     }
     
-    switch (user?.profile?.subscription_status) {
+    switch (userProfile?.subscription_status) {
       case 'legacy':
         return 'Unlimited';
       case 'active':
@@ -342,9 +361,9 @@ export const Subscription: React.FC = () => {
 
   const userWithProfile = user ? {
     ...user,
-    name: user.profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    name: userProfile?.name || user.user_metadata?.name || user.email!.split('@')[0],
     email: user.email!,
-    avatar_url: user.profile?.avatar_url
+    avatar_url: userProfile?.avatar_url
   } : null;
 
   return (
@@ -377,9 +396,9 @@ export const Subscription: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 h-fit">
               <div className="text-center mb-8">
                 <div className="relative inline-block mb-6">
-                  {user.profile?.avatar_url ? (
+                  {userProfile?.avatar_url ? (
                     <img
-                      src={user.profile.avatar_url}
+                      src={userProfile.avatar_url}
                       alt={userWithProfile?.name || 'Profile'}
                       className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-white"
                     />
@@ -470,14 +489,14 @@ export const Subscription: React.FC = () => {
                     <h4 className={`text-2xl font-semibold ${getSubscriptionColor()}`}>
                       {getSubscriptionStatus()}
                     </h4>
-                    {user?.profile?.subscription_status === 'trial' && (
+                    {userProfile?.subscription_status === 'trial' && (
                       <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
                         {trialDaysRemaining} days left
                       </div>
                     )}
                   </div>
 
-                  {user?.profile?.subscription_status === 'trial' && (
+                  {userProfile?.subscription_status === 'trial' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm text-blue-700">
                         <span>Trial Progress</span>
@@ -492,7 +511,7 @@ export const Subscription: React.FC = () => {
                     </div>
                   )}
 
-                  {(user?.profile?.subscription_status === 'active' || user?.profile?.subscription_status === 'legacy') && getNextPaymentDate() && (
+                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy') && getNextPaymentDate() && (
                     <div className="flex items-center space-x-3 text-green-700">
                       <Calendar className="w-5 h-5" />
                       <span>Next payment: {getNextPaymentDate()}</span>
@@ -506,10 +525,10 @@ export const Subscription: React.FC = () => {
                     onClick={handleUpgradeClick}
                     className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 hover:shadow-lg"
                   >
-                    {user?.profile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
+                    {userProfile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
                   </button>
                   
-                  {(user?.profile?.subscription_status === 'active' || user?.profile?.subscription_status === 'legacy') && (
+                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy') && (
                     <button
                       onClick={handleCancelSubscription}
                       className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300"
@@ -522,7 +541,7 @@ export const Subscription: React.FC = () => {
             </motion.div>
 
             {/* Legacy Plan Benefits */}
-            {(user?.profile?.subscription_status === 'legacy' || (user?.profile?.stripe_price_id && getPlanNameFromPriceId(user.profile.stripe_price_id) === 'legacy')) && (
+            {(userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -582,7 +601,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Keepsake Plan Benefits */}
-            {(user?.profile?.stripe_price_id && getPlanNameFromPriceId(user.profile.stripe_price_id) === 'keepsake') && (
+            {(userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'keepsake') && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -642,7 +661,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Heirloom Plan Benefits */}
-            {(user?.profile?.stripe_price_id && getPlanNameFromPriceId(user.profile.stripe_price_id) === 'heirloom') && (
+            {(userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'heirloom') && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -701,7 +720,7 @@ export const Subscription: React.FC = () => {
               </motion.div>
             )}
             {/* Trial Benefits */}
-            {user?.profile?.subscription_status === 'trial' && (
+            {userProfile?.subscription_status === 'trial' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -732,7 +751,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Advanced Scheduling - Sponsors Section */}
-            {(user?.profile?.subscription_status === 'active' || user?.profile?.subscription_status === 'legacy' || (user?.profile?.stripe_price_id && getPlanNameFromPriceId(user.profile.stripe_price_id) === 'legacy')) && (
+            {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
