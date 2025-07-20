@@ -23,6 +23,8 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
   const location = useLocation();
   const navigate = useNavigate();
 
+  console.log('Header render - user prop:', user);
+
   const navigationLinks = [
     { name: 'Home', href: '/' },
     { name: 'Custom Song', href: '/custom-song' },

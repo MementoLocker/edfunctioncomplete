@@ -120,6 +120,8 @@ function App() {
     avatar_url: profile.avatar_url
   } : null;
 
+  console.log('App render - user:', !!user, 'profile:', !!profile, 'userWithProfile:', !!userWithProfile);
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
