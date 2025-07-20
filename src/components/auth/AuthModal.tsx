@@ -39,17 +39,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     setError(null)
+    console.log('Form submitted with mode:', mode, 'email:', data.email)
 
     try {
       if (mode === 'signup') {
+        console.log('Calling signUp...')
         const { error } = await signUp(data.email, data.password, data.name!)
+        console.log('SignUp completed, error:', error)
         if (error) throw error
         // Show custom toast notification instead of alert
         setShowToast(true)
         reset()
         onClose()
       } else {
+        console.log('Calling signIn...')
         const { error } = await signIn(data.email, data.password)
+        console.log('SignIn completed, error:', error)
         if (error) throw error
         // Successfully signed in
         reset()
@@ -57,8 +62,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err: any) {
       console.error('Auth error:', err)
-      setError(err.message)
+      setError(err.message || 'Authentication failed. Please try again.')
     } finally {
+      console.log('Setting loading to false')
       setLoading(false)
     }
   }

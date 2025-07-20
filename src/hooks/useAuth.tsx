@@ -102,11 +102,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Initialize auth state
   useEffect(() => {
     let mounted = true;
+    console.log('Initializing auth...')
 
     const initializeAuth = async () => {
       try {
         // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initial session check:', { session: !!session, error })
         
         if (error) {
           console.error('Error getting session:', error);
@@ -128,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setProfile(profileData);
           }
         } else if (mounted) {
+          console.log('No session found')
           setUser(null);
           setProfile(null);
         }
@@ -139,6 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } finally {
         if (mounted) {
+          console.log('Auth initialization complete')
           setLoading(false);
         }
       }
