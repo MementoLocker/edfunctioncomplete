@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth.tsx';
+import { useAuth } from '../hooks/useAuth'; // We will now use the profile from here
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ToastNotification } from '../components/ToastNotification';
