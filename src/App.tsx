@@ -25,6 +25,7 @@ import { SponsorDashboard } from './pages/SponsorDashboard';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './lib/supabase';
+import { ExitIntentModal } from './components/ExitIntentModal';
 
 // Scroll to top component
 function ScrollToTop() {
@@ -162,13 +163,20 @@ function App() {
     window.location.href = '/subscription';
   };
 
+  // Create user object with profile data for Header component
+  const userWithProfile = user && profile ? {
+    ...user,
+    name: profile.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+    email: user.email || '',
+    avatar_url: profile.avatar_url
+  } : null;
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <ScrollToTop />
         
         <Header
-          user={user}
+          user={userWithProfile}
           profile={profile}
           loading={loading}
           onSignIn={handleSignIn}
@@ -202,6 +210,7 @@ function App() {
         
         <Footer onSignIn={handleSignIn} />
         <CookieConsent />
+        <ExitIntentModal />
         
         <AuthModal
           isOpen={authModal.isOpen}

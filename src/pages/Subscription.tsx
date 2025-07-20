@@ -385,13 +385,6 @@ export const Subscription: React.FC = () => {
     navigate('/contact');
   };
 
-  const userWithProfile = user ? {
-    ...user,
-    name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
-    email: user.email!,
-    avatar_url: profile?.avatar_url
-  } : null;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="max-w-6xl mx-auto px-6 py-12">
@@ -422,10 +415,10 @@ export const Subscription: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 h-fit">
               <div className="text-center mb-8">
                 <div className="relative inline-block mb-6">
-                  {userProfile?.avatar_url ? (
+                  {profile?.avatar_url ? (
                     <img
-                      src={userProfile.avatar_url}
-                      alt={userWithProfile?.name || 'Profile'}
+                      src={profile.avatar_url}
+                      alt={profile?.name || 'Profile'}
                       className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-white"
                     />
                   ) : (
@@ -451,7 +444,7 @@ export const Subscription: React.FC = () => {
                 )}
 
                 <h2 className="text-2xl font-serif font-medium text-gray-800 mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  {userWithProfile?.name}
+                  {profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'}
                 </h2>
                 <p className="text-gray-500 mb-6">{user.email}</p>
                 
