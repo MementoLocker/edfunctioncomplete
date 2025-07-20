@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Calendar, Upload, CreditCard, User, Camera, Package, Clock, CheckCircle, Mail, Trash2, UserCheck, UserX, Shield, Star, Music, Infinity, HeadphonesIcon, MessageCircle } from 'lucide-react';
+import { Crown, Calendar, Upload, CreditCard, User, Camera, Package, Clock, CheckCircle, Mail, Trash2, UserCheck, UserX, Shield, Star, Music, Infinity, HeadphonesIcon, MessageCircle, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -220,8 +220,46 @@ export const Subscription: React.FC = () => {
     navigate('/#pricing');
   };
 
+  const handleManageBilling = async () => {
+    if (!userProfile?.stripe_customer_id) {
+      triggerToast('No billing information found. Please contact support.', 'error');
+      return;
+    }
+
+    try {
+      // Create a billing portal session
+      const { data, error } = await supabase.functions.invoke('create-billing-portal', {
+        body: { customerId: userProfile.stripe_customer_id },
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No billing portal URL received');
+      }
+    } catch (error) {
+      console.error('Error creating billing portal session:', error);
+      triggerToast('Unable to access billing portal. Please contact support.', 'error');
+    }
+  };
   const handleCancelSubscription = () => {
-    alert('Cancel subscription functionality will be connected to Stripe customer portal.');
+    const confirmCancel = window.confirm(
+      'Are you sure you want to cancel your subscription?\n\n' +
+      '• Your subscription will remain active until the end of your current billing period\n' +
+      '• You can still access all features until then\n' +
+      '• Your time capsules and data will be preserved\n' +
+      '• You can resubscribe at any time\n\n' +
+      'Click OK to proceed to the billing portal where you can cancel.'
+    );
+    
+    if (confirmCancel) {
+      handleManageBilling();
+    }
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -553,12 +591,24 @@ export const Subscription: React.FC = () => {
                     {userProfile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
                   </button>
                   
-                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy') && (
+                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && userProfile?.subscription_status !== 'free')) && (
+                    <button
+                      onClick={handleManageBilling}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2"
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      <span>Manage Billing</span>
+                    </button>
+                  )}
+                  
+                  {/* Cancel Subscription Button - Only for paid users */}
+                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && userProfile?.subscription_status !== 'free')) && (
                     <button
                       onClick={handleCancelSubscription}
-                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300"
+                      className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 border border-red-200 hover:border-red-300 flex items-center justify-center space-x-2"
                     >
-                      Manage Billing
+                      <X className="w-5 h-5" />
+                      <span>Cancel Subscription</span>
                     </button>
                   )}
                 </div>
