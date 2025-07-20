@@ -249,7 +249,6 @@ function App() {
           onUpgrade={handleUpgradeClick}
         />
       </Router>
-    </AuthProvider>
   );
 }
 

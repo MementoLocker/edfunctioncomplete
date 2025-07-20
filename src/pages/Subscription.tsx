@@ -523,8 +523,6 @@ export const Subscription: React.FC = () => {
                   </div>
 
                   {profile?.subscription_status === 'trial' && (
-                  {profile?.subscription_status === 'trial' && (
-                  {profile?.subscription_status === 'trial' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm text-blue-700">
                         <span>Trial Progress</span>
@@ -539,7 +537,6 @@ export const Subscription: React.FC = () => {
                     </div>
                   )}
 
-                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && getNextPaymentDate() && (
                   {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && getNextPaymentDate() && (
                     <div className="flex items-center space-x-3 text-green-700">
                       <Calendar className="w-5 h-5" />
