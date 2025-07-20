@@ -35,6 +35,7 @@ export const signIn = async (email: string, password: string) => {
     password,
   })
   console.log('Sign in result:', { data, error })
+  console.log('Sign in completed successfully:', !!data.user)
   return { data, error }
 }
 

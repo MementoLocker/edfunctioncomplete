@@ -172,6 +172,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const profileData = await fetchProfile(session.user.id);
         if (mounted) {
           setProfile(profileData);
+          console.log('Profile set, auth process complete');
         }
       }
 

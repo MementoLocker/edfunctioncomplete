@@ -53,9 +53,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose()
       } else {
         console.log('Calling signIn...')
-        const { error } = await signIn(data.email, data.password)
+        const { data: signInData, error } = await signIn(data.email, data.password)
         console.log('SignIn completed, error:', error)
+        console.log('SignIn data:', signInData)
         if (error) throw error
+        console.log('SignIn successful, closing modal')
         // Successfully signed in
         reset()
         onClose()
