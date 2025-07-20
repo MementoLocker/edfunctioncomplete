@@ -41,6 +41,12 @@ export const Subscription: React.FC = () => {
     
     if (!userProfile) return '30-Day Free Trial';
     
+    // PRIORITY: If subscription_status is 'free', always show free trial regardless of stripe_price_id
+    if (userProfile.subscription_status === 'free') {
+      console.log('Using free status override');
+      return '30-Day Free Trial';
+    }
+    
     // If we have a stripe_price_id, use that to determine the plan
     if (userProfile.stripe_price_id) {
       console.log('Using stripe_price_id path');
@@ -64,8 +70,6 @@ export const Subscription: React.FC = () => {
     console.log('Using subscription_status path');
     console.log('subscription_status value:', userProfile.subscription_status);
     switch (userProfile.subscription_status) {
-      case 'free':
-        return '30-Day Free Trial';
       case 'active':
         return 'Premium Plan';
       case 'legacy':
