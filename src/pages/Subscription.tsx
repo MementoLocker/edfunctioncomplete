@@ -54,8 +54,10 @@ export const Subscription: React.FC = () => {
       }
     }
     
-    // Fallback to subscription_status
+    // Use subscription_status from database
     switch (userProfile.subscription_status) {
+      case 'free':
+        return '30-Day Free Trial';
       case 'active':
         return 'Premium Plan';
       case 'legacy':
@@ -65,7 +67,7 @@ export const Subscription: React.FC = () => {
       case 'cancelled':
         return 'Cancelled';
       default:
-        return '30-Day Free Trial';
+        return 'Free Account';
     }
   };
 
