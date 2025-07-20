@@ -34,12 +34,18 @@ export const Subscription: React.FC = () => {
   };
 
   const getSubscriptionStatus = () => {
-    console.log('Getting subscription status for profile:', userProfile); // Debug log
+    console.log('=== DEBUG getSubscriptionStatus ===');
+    console.log('userProfile:', userProfile);
+    console.log('userProfile.stripe_price_id:', userProfile?.stripe_price_id);
+    console.log('userProfile.subscription_status:', userProfile?.subscription_status);
+    
     if (!userProfile) return '30-Day Free Trial';
     
     // If we have a stripe_price_id, use that to determine the plan
     if (userProfile.stripe_price_id) {
+      console.log('Using stripe_price_id path');
       const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
+      console.log('planName from stripe_price_id:', planName);
       switch (planName) {
         case 'keepsake':
           return 'Keepsake Plan';
@@ -55,6 +61,8 @@ export const Subscription: React.FC = () => {
     }
     
     // Use subscription_status from database
+    console.log('Using subscription_status path');
+    console.log('subscription_status value:', userProfile.subscription_status);
     switch (userProfile.subscription_status) {
       case 'free':
         return '30-Day Free Trial';
@@ -67,6 +75,7 @@ export const Subscription: React.FC = () => {
       case 'cancelled':
         return 'Cancelled';
       default:
+        console.log('Hit default case with status:', userProfile.subscription_status);
         return 'Free Account';
     }
   };
