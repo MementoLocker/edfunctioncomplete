@@ -51,10 +51,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else {
         const { error } = await signIn(data.email, data.password)
         if (error) throw error
+        // Successfully signed in
         reset()
         onClose()
       }
     } catch (err: any) {
+      console.error('Auth error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -64,6 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleClose = () => {
     reset()
     setError(null)
+    setLoading(false)
     onClose()
   }
 
@@ -123,6 +126,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         type="text"
                         className="w-full pl-10 pr-4 py-3 border border-dusty-200 rounded-lg focus:ring-2 focus:ring-dusty-500 focus:border-transparent"
                         placeholder="Enter your full name"
+                        disabled={loading}
                       />
                     </div>
                     {errors.name && (
@@ -148,6 +152,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="email"
                       className="w-full pl-10 pr-4 py-3 border border-dusty-200 rounded-lg focus:ring-2 focus:ring-dusty-500 focus:border-transparent"
                       placeholder="Enter your email"
+                      disabled={loading}
                     />
                   </div>
                   {errors.email && (
@@ -172,11 +177,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type={showPassword ? 'text' : 'password'}
                       className="w-full pl-10 pr-12 py-3 border border-dusty-200 rounded-lg focus:ring-2 focus:ring-dusty-500 focus:border-transparent"
                       placeholder="Enter your password"
+                      disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dusty-400 hover:text-dusty-600"
+                      disabled={loading}
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -191,7 +198,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   disabled={loading}
                   className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      {mode === 'signin' ? 'Signing In...' : 'Creating Account...'}
+                    </div>
+                  ) : (
+                    mode === 'signin' ? 'Sign In' : 'Create Account'
+                  )}
                 </button>
               </form>
 
@@ -201,6 +215,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <button
                     onClick={() => onModeChange(mode === 'signin' ? 'signup' : 'signin')}
                     className="ml-2 text-dusty-500 hover:text-dusty-700 font-medium"
+                    disabled={loading}
                   >
                     {mode === 'signin' ? 'Sign up' : 'Sign in'}
                   </button>
