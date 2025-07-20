@@ -239,4 +239,6 @@ function App() {
         </div>
       </Router>
     </AuthProvider>
+  )
+}
 export default App;
