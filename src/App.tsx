@@ -23,83 +23,49 @@ import { ClientReviews } from './pages/ClientReviews';
 import { MusicLibrary } from './pages/MusicLibrary';
 import { SponsorDashboard } from './pages/SponsorDashboard';
 import { PaymentSuccess } from './pages/PaymentSuccess';
-import { useAuth } from './hooks/useAuth';
-import { signOut, supabase } from './lib/supabase';
+import { useAuth } from './hooks/useAuth'; // This will now import from our corrected useAuth.tsx
+import { supabase } from './lib/supabase';
 
-// Scroll to top component
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
-
   useEffect(() => {
     if (hash) {
-      // If there's a hash, scroll to that element after a brief delay
       setTimeout(() => {
         const element = document.getElementById(hash.substring(1));
         if (element) {
           const headerHeight = 80;
           const elementPosition = element.offsetTop - headerHeight;
-          window.scrollTo({
-            top: elementPosition,
-            behavior: 'smooth'
-          });
+          window.scrollTo({ top: elementPosition, behavior: 'smooth' });
         }
       }, 100);
     } else {
-      // No hash, scroll to top
       window.scrollTo(0, 0);
     }
   }, [pathname, hash]);
-
   return null;
 }
 
 function App() {
-  const { user, loading } = useAuth();
+  // FIXED: Get user, profile, loading state, and signOut function directly from the corrected useAuth hook.
+  const { user, profile, loading, signOut } = useAuth();
+  
   const [authModal, setAuthModal] = useState<{ isOpen: boolean; mode: 'signin' | 'signup' }>({
     isOpen: false,
     mode: 'signin'
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Check for first-time login and show welcome modal
+  // This logic now correctly uses the profile from the useAuth hook
   useEffect(() => {
     if (user && !loading) {
       checkFirstTimeLogin();
-      fetchUserProfile();
     }
-  }, [user, loading]);
-
-  const fetchUserProfile = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      setUserProfile(data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
+  }, [user, loading, profile]);
 
   const checkFirstTimeLogin = async () => {
-    if (!user) return;
+    if (!user || profile) return; // If profile already exists, do nothing
 
     try {
-      // Check if user has a profile and if it's their first login
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // Profile doesn't exist, create it and set up trial
         const trialStartDate = new Date();
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 30);
@@ -113,64 +79,33 @@ function App() {
             subscription_status: 'trial',
             trial_start_date: trialStartDate.toISOString(),
             trial_end_date: trialEndDate.toISOString(),
-            capsules_sent: 0,
-            social_shares_completed: 0
           });
 
         if (insertError) throw insertError;
-
-        // Show welcome modal for new users
         setShowWelcomeModal(true);
-      } else if (profile && profile.subscription_status === 'trial' && !profile.trial_start_date) {
-        // Existing user but trial not set up properly
-        const trialStartDate = new Date();
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 30);
-
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            subscription_status: 'trial',
-            trial_start_date: trialStartDate.toISOString(),
-            trial_end_date: trialEndDate.toISOString()
-          })
-          .eq('id', user.id);
-
-        if (updateError) throw updateError;
-
-        setShowWelcomeModal(true);
-      }
     } catch (error) {
-      console.error('Error checking first time login:', error);
+      console.error('Error creating profile for first-time login:', error);
     }
   };
 
-  const handleSignIn = () => {
-    setAuthModal({ isOpen: true, mode: 'signin' });
-  };
+  const handleSignIn = () => setAuthModal({ isOpen: true, mode: 'signin' });
+  const handleSignUp = () => setAuthModal({ isOpen: true, mode: 'signup' });
 
-  const handleSignUp = () => {
-    setAuthModal({ isOpen: true, mode: 'signup' });
-  };
-
+  // FIXED: The signOut function now comes directly from our useAuth hook
   const handleSignOut = async () => {
     await signOut();
-    setUserProfile(null);
   };
 
   const handleGetStarted = () => {
     if (user) {
-      // User is logged in, redirect to create capsule or dashboard
       window.location.href = '/create-capsule';
     } else {
-      // User is not logged in, open sign up modal
       setAuthModal({ isOpen: true, mode: 'signup' });
     }
   };
 
   const handleUpgradeClick = () => {
     setShowWelcomeModal(false);
-    // Navigate to pricing section
     setTimeout(() => {
       window.location.href = '/#pricing';
     }, 100);
@@ -184,11 +119,12 @@ function App() {
     );
   }
 
+  // FIXED: This now correctly uses the profile from the useAuth hook
   const userWithProfile = user ? {
     ...user,
-    name: userProfile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
     email: user.email!,
-    avatar_url: userProfile?.avatar_url
+    avatar_url: profile?.avatar_url
   } : null;
 
   return (
