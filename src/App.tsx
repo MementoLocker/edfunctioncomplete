@@ -228,9 +228,16 @@ function App() {
             mode={authModal.mode}
             onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
           />
-  )
+          
+          <WelcomeModal
+            isOpen={showWelcomeModal}
+            onClose={() => setShowWelcomeModal(false)}
+            onUpgrade={handleUpgradeClick}
+          />
+        </AuthProvider>
+      </Router>
+    </AuthProvider>
+  );
 }
 
 export default App;
-  )
-}
