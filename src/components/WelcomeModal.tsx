@@ -5,7 +5,7 @@ import { X, Gift, ArrowRight } from 'lucide-react';
 interface WelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpgradeClick: () => void;
+  onUpgradeClick?: () => void;
 }
 
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({
@@ -15,7 +15,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
 }) => {
   const handleUpgradeClick = () => {
     onClose();
-    onUpgradeClick();
+    onUpgradeClick?.();
   };
 
   return (

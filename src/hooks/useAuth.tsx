@@ -10,7 +10,6 @@ interface Profile {
   subscription_status: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
-  stripe_price_id: string | null;
   trial_start_date: string | null;
   trial_end_date: string | null;
   capsules_sent: number;
@@ -49,7 +48,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          console.log('Profile not found, creating new profile for user:', userId);
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData.user) {
+            const newProfile = {
+              id: userId,
+              name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'User',
+              email: userData.user.email || '',
+              subscription_status: 'trial',
+              trial_start_date: new Date().toISOString(),
+              trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              capsules_sent: 0,
+              social_shares_completed: 0
+            };
+            
+            const { data: insertedProfile, error: insertError } = await supabase
+              .from('profiles')
+              .insert(newProfile)
+              .select()
+              .single();
+              
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+              return null;
+            }
+            
+            return insertedProfile;
+          }
+        } else {
+          console.error('Error fetching profile:', error);
+        }
         return null;
       }
 
