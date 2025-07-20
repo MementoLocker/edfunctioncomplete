@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ToastNotification } from '../components/ToastNotification';
 
 export const Subscription: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,6 @@ export const Subscription: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
-  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Map Stripe Price IDs to plan names
   const getPlanNameFromPriceId = (priceId: string) => {
@@ -34,24 +33,16 @@ export const Subscription: React.FC = () => {
   };
 
   const getSubscriptionStatus = () => {
-    console.log('=== DEBUG getSubscriptionStatus ===');
-    console.log('userProfile:', userProfile);
-    console.log('userProfile.stripe_price_id:', userProfile?.stripe_price_id);
-    console.log('userProfile.subscription_status:', userProfile?.subscription_status);
-    
-    if (!userProfile) return '30-Day Free Trial';
+    if (!profile) return '30-Day Free Trial';
     
     // PRIORITY: If subscription_status is 'free', always show free trial regardless of stripe_price_id
-    if (userProfile.subscription_status === 'free') {
-      console.log('Using free status override');
+    if (profile.subscription_status === 'free') {
       return '30-Day Free Trial';
     }
     
     // If we have a stripe_price_id, use that to determine the plan
-    if (userProfile.stripe_price_id) {
-      console.log('Using stripe_price_id path');
-      const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
-      console.log('planName from stripe_price_id:', planName);
+    if (profile.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
       switch (planName) {
         case 'keepsake':
           return 'Keepsake Plan';
@@ -67,9 +58,7 @@ export const Subscription: React.FC = () => {
     }
     
     // Use subscription_status from database
-    console.log('Using subscription_status path');
-    console.log('subscription_status value:', userProfile.subscription_status);
-    switch (userProfile.subscription_status) {
+    switch (profile.subscription_status) {
       case 'active':
         return 'Premium Plan';
       case 'legacy':
@@ -79,7 +68,6 @@ export const Subscription: React.FC = () => {
       case 'cancelled':
         return 'Cancelled';
       default:
-        console.log('Hit default case with status:', userProfile.subscription_status);
         return 'Free Account';
     }
   };
@@ -91,49 +79,24 @@ export const Subscription: React.FC = () => {
   };
 
   const fetchUserProfile = async () => {
-    if (!user) return;
-    
-    console.log('Fetching profile for user:', user.id); // Debug log
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      console.log('Profile data from database:', data); // Debug log
-      if (error) throw error;
-      setUserProfile(data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // If profile doesn't exist, create a default one
-      if (error.code === 'PGRST116') {
-        console.log('Profile not found, user may need to refresh or profile creation failed');
-      }
-    }
+    // This is now handled by the AuthProvider
+    await refreshProfile();
   };
 
   useEffect(() => {
-    if (user) {
-      console.log('User changed, fetching profile...'); // Debug log
-      fetchUserProfile();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (userProfile) {
+    if (profile) {
       calculateTrialDays();
-      if (userProfile.subscription_status === 'active') {
+      if (profile.subscription_status === 'active' || profile.subscription_status === 'legacy') {
         fetchSponsors();
       }
       setLoading(false);
     }
-  }, [userProfile, location.pathname]);
+  }, [profile, location.pathname]);
 
   const calculateTrialDays = () => {
-    if (userProfile?.trial_end_date) {
+    if (profile?.trial_end_date) {
       try {
-        const endDate = new Date(userProfile.trial_end_date);
+        const endDate = new Date(profile.trial_end_date);
         const today = new Date();
         const diffTime = endDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -221,7 +184,7 @@ export const Subscription: React.FC = () => {
   };
 
   const handleManageBilling = async () => {
-    if (!userProfile?.stripe_customer_id) {
+    if (!profile?.stripe_customer_id) {
       triggerToast('No billing information found. Please contact support.', 'error');
       return;
     }
@@ -229,7 +192,7 @@ export const Subscription: React.FC = () => {
     try {
       // Create a billing portal session
       const { data, error } = await supabase.functions.invoke('create-billing-portal', {
-        body: { customerId: userProfile.stripe_customer_id },
+        body: { customerId: profile.stripe_customer_id },
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
         }
@@ -335,9 +298,9 @@ export const Subscription: React.FC = () => {
   }
 
   const getSubscriptionColor = () => {
-    if (!userProfile) return 'text-gray-600';
+    if (!profile) return 'text-gray-600';
     
-    switch (userProfile.subscription_status) {
+    switch (profile.subscription_status) {
       case 'active':
         return 'text-green-600';
       case 'legacy':
@@ -352,11 +315,11 @@ export const Subscription: React.FC = () => {
   };
 
   const getNextPaymentDate = () => {
-    if (userProfile?.subscription_status === 'legacy') {
+    if (profile?.subscription_status === 'legacy') {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       return nextMonth.toLocaleDateString();
-    } else if (userProfile?.subscription_status === 'active') {
+    } else if (profile?.subscription_status === 'active') {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       return nextMonth.toLocaleDateString();
@@ -365,8 +328,8 @@ export const Subscription: React.FC = () => {
   };
 
   const getStorageLimit = () => {
-    if (userProfile?.stripe_price_id) {
-      const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
+    if (profile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
       switch (planName) {
         case 'keepsake':
           return '10GB';
@@ -379,7 +342,7 @@ export const Subscription: React.FC = () => {
       }
     }
     
-    switch (userProfile?.subscription_status) {
+    switch (profile?.subscription_status) {
       case 'active':
         return '25GB';
       case 'legacy':
@@ -392,8 +355,8 @@ export const Subscription: React.FC = () => {
   };
 
   const getCapsuleLimit = () => {
-    if (userProfile?.stripe_price_id) {
-      const planName = getPlanNameFromPriceId(userProfile.stripe_price_id);
+    if (profile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
       switch (planName) {
         case 'keepsake':
           return '5 per month';
@@ -406,7 +369,7 @@ export const Subscription: React.FC = () => {
       }
     }
     
-    switch (userProfile?.subscription_status) {
+    switch (profile?.subscription_status) {
       case 'legacy':
         return 'Unlimited';
       case 'active':
@@ -424,9 +387,9 @@ export const Subscription: React.FC = () => {
 
   const userWithProfile = user ? {
     ...user,
-    name: userProfile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
     email: user.email!,
-    avatar_url: userProfile?.avatar_url
+    avatar_url: profile?.avatar_url
   } : null;
 
   return (
@@ -552,14 +515,16 @@ export const Subscription: React.FC = () => {
                     <h4 className={`text-2xl font-semibold ${getSubscriptionColor()}`}>
                       {getSubscriptionStatus()}
                     </h4>
-                    {userProfile?.subscription_status === 'trial' && (
+                    {profile?.subscription_status === 'trial' && (
                       <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
                         {trialDaysRemaining} days left
                       </div>
                     )}
                   </div>
 
-                  {userProfile?.subscription_status === 'trial' && (
+                  {profile?.subscription_status === 'trial' && (
+                  {profile?.subscription_status === 'trial' && (
+                  {profile?.subscription_status === 'trial' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm text-blue-700">
                         <span>Trial Progress</span>
@@ -574,7 +539,8 @@ export const Subscription: React.FC = () => {
                     </div>
                   )}
 
-                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy') && getNextPaymentDate() && (
+                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && getNextPaymentDate() && (
+                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && getNextPaymentDate() && (
                     <div className="flex items-center space-x-3 text-green-700">
                       <Calendar className="w-5 h-5" />
                       <span>Next payment: {getNextPaymentDate()}</span>
@@ -588,10 +554,10 @@ export const Subscription: React.FC = () => {
                     onClick={handleUpgradeClick}
                     className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 hover:shadow-lg"
                   >
-                    {userProfile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
+                    {profile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
                   </button>
                   
-                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && userProfile?.subscription_status !== 'free')) && (
+                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && profile?.subscription_status !== 'free')) && (
                     <button
                       onClick={handleManageBilling}
                       className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2"
@@ -602,7 +568,7 @@ export const Subscription: React.FC = () => {
                   )}
                   
                   {/* Cancel Subscription Button - Only for paid users */}
-                  {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && userProfile?.subscription_status !== 'free')) && (
+                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && profile?.subscription_status !== 'free')) && (
                     <button
                       onClick={handleCancelSubscription}
                       className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 border border-red-200 hover:border-red-300 flex items-center justify-center space-x-2"
@@ -616,7 +582,7 @@ export const Subscription: React.FC = () => {
             </motion.div>
 
             {/* Legacy Plan Benefits */}
-            {(userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'legacy')) && (
+            {(profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -676,7 +642,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Keepsake Plan Benefits */}
-            {(userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'keepsake') && (
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'keepsake') && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -736,7 +702,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Heirloom Plan Benefits */}
-            {(userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'heirloom') && (
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'heirloom') && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -795,7 +761,7 @@ export const Subscription: React.FC = () => {
               </motion.div>
             )}
             {/* Trial Benefits */}
-            {userProfile?.subscription_status === 'trial' && (
+            {profile?.subscription_status === 'trial' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -826,7 +792,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Advanced Scheduling - Sponsors Section */}
-            {(userProfile?.subscription_status === 'active' || userProfile?.subscription_status === 'legacy' || (userProfile?.stripe_price_id && getPlanNameFromPriceId(userProfile.stripe_price_id) === 'legacy')) && (
+            {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

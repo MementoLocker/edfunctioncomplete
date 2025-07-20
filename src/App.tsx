@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { AuthProvider } from './hooks/useAuth';
 import Header from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
@@ -24,7 +25,7 @@ import { MusicLibrary } from './pages/MusicLibrary';
 import { SponsorDashboard } from './pages/SponsorDashboard';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { useAuth } from './hooks/useAuth';
-import { signOut, supabase } from './lib/supabase';
+import { supabase } from './lib/supabase';
 
 // Scroll to top component
 function ScrollToTop() {
@@ -54,38 +55,19 @@ function ScrollToTop() {
 }
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const [authModal, setAuthModal] = useState<{ isOpen: boolean; mode: 'signin' | 'signup' }>({
     isOpen: false,
     mode: 'signin'
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Check for first-time login and show welcome modal
   useEffect(() => {
     if (user && !loading) {
       checkFirstTimeLogin();
-      fetchUserProfile();
     }
-  }, [user, loading]);
-
-  const fetchUserProfile = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      setUserProfile(data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
+  }, [user, loading, profile]);
 
   const checkFirstTimeLogin = async () => {
     if (!user) return;
@@ -138,6 +120,8 @@ function App() {
 
         if (updateError) throw updateError;
 
+        // Refresh profile data after update
+        await refreshProfile();
         setShowWelcomeModal(true);
       }
     } catch (error) {
@@ -155,15 +139,7 @@ function App() {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-        alert('Failed to sign out. Please try again.');
-        return;
-      }
-      
-      // Clear local state
-      setUserProfile(null);
+      await signOut();
       
       // Redirect to home page
       window.location.href = '/';
@@ -201,65 +177,66 @@ function App() {
 
   const userWithProfile = user ? {
     ...user,
-    name: user.profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
     email: user.email!,
-    avatar_url: user.profile?.avatar_url
+    avatar_url: profile?.avatar_url
   } : null;
 
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <Header 
-          user={userWithProfile}
-          onSignIn={handleSignIn} 
-          onSignOut={handleSignOut}
-        />
-        
-        <main className="flex-1">
-          <Routes>
-            <Route 
-              path="/" 
-              element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} 
-            />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/create-capsule" element={<CreateCapsule />} />
-            <Route path="/custom-song" element={<CustomSong />} />
-            <Route path="/leave-review" element={<LeaveReview />} />
-            <Route path="/capsule-examples" element={<CapsuleExamples />} />
-            <Route path="/subscription" element={<Subscription />} />
-            <Route path="/payment-success" element={<PaymentSuccess />} />
-            <Route path="/my-capsules" element={<MyCapsules />} />
-            <Route path="/client-reviews" element={<ClientReviews />} />
-            <Route path="/sponsor-dashboard" element={<SponsorDashboard />} />
-            <Route path="/music-library" element={<MusicLibrary />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/copyright" element={<Copyright />} />
-            <Route path="/security" element={<Security />} />
-          </Routes>
-        </main>
-        
-        <Footer onSignIn={handleSignIn} />
-        <CookieConsent />
-        
-        <AuthModal
-          isOpen={authModal.isOpen}
-          onClose={() => setAuthModal({ ...authModal, isOpen: false })}
-          mode={authModal.mode}
-          onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
-        />
-
-        <WelcomeModal
-          isOpen={showWelcomeModal}
-          onClose={() => setShowWelcomeModal(false)}
-          onUpgradeClick={handleUpgradeClick}
-        />
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <ScrollToTop />
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <Header 
+            user={userWithProfile}
+            onSignIn={handleSignIn} 
+            onSignOut={handleSignOut}
+          />
+          
+          <main className="flex-1">
+            <Routes>
+              <Route 
+                path="/" 
+                element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} 
+              />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/create-capsule" element={<CreateCapsule />} />
+              <Route path="/custom-song" element={<CustomSong />} />
+              <Route path="/leave-review" element={<LeaveReview />} />
+              <Route path="/capsule-examples" element={<CapsuleExamples />} />
+              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/my-capsules" element={<MyCapsules />} />
+              <Route path="/client-reviews" element={<ClientReviews />} />
+              <Route path="/sponsor-dashboard" element={<SponsorDashboard />} />
+              <Route path="/music-library" element={<MusicLibrary />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/copyright" element={<Copyright />} />
+              <Route path="/security" element={<Security />} />
+            </Routes>
+          </main>
+          
+          <Footer onSignIn={handleSignIn} />
+          <CookieConsent />
+          
+          <AuthModal
+            isOpen={authModal.isOpen}
+            onClose={() => setAuthModal({ ...authModal, isOpen: false })}
+            mode={authModal.mode}
+            onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
+          />
   );
 }
 
+          <WelcomeModal
+            isOpen={showWelcomeModal}
+            onClose={() => setShowWelcomeModal(false)}
+            onUpgradeClick={handleUpgradeClick}
+          />
+        </div>
+      </Router>
+    </AuthProvider>
 export default App;
