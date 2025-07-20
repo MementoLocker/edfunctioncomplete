@@ -3,6 +3,7 @@ import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { signUp, signIn } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 import { ToastNotification } from '../ToastNotification'
 
 interface AuthModalProps {
