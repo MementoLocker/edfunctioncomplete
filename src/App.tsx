@@ -228,17 +228,7 @@ function App() {
             mode={authModal.mode}
             onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
           />
-  );
-}
-
-          <WelcomeModal
-            isOpen={showWelcomeModal}
-            onClose={() => setShowWelcomeModal(false)}
-            onUpgradeClick={handleUpgradeClick}
-          />
-        </div>
-      </Router>
-    </AuthProvider>
   )
 }
+
 export default App;
