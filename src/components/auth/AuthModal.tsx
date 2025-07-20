@@ -28,6 +28,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showToast, setShowToast] = useState(false)
+  const { user } = useAuth()
 
   const {
     register,
@@ -35,6 +36,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     formState: { errors },
     reset,
   } = useForm<FormData>()
+
+  // Close modal if user becomes authenticated
+  React.useEffect(() => {
+    if (user && isOpen) {
+      console.log('User authenticated, closing modal')
+      handleClose()
+    }
+  }, [user, isOpen])
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
@@ -49,8 +58,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (error) throw error
         // Show custom toast notification instead of alert
         setShowToast(true)
-        reset()
-        onClose()
+        handleClose()
       } else {
         console.log('Calling signIn...')
         const { data: signInData, error } = await signIn(data.email, data.password)
@@ -59,19 +67,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (error) throw error
         console.log('SignIn successful, closing modal')
         // Successfully signed in
-        reset()
-        onClose()
+        handleClose()
       }
     } catch (err: any) {
       console.error('Auth error:', err)
       setError(err.message || 'Authentication failed. Please try again.')
+      setLoading(false)
     } finally {
       console.log('Setting loading to false')
-      setLoading(false)
+      // Don't set loading to false here if successful, let the useEffect handle it
     }
   }
 
   const handleClose = () => {
+    console.log('Closing auth modal')
     reset()
     setError(null)
     setLoading(false)

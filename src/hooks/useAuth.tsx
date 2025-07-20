@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               return null;
             }
             
+            console.log('Profile created successfully:', insertedProfile);
             return insertedProfile;
           }
         } else {
@@ -128,6 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const profileData = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(profileData);
+            console.log('Initial auth setup complete - user and profile set');
           }
         } else if (mounted) {
           console.log('No session found')
@@ -173,12 +175,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (mounted) {
           setProfile(profileData);
           console.log('Profile set, auth process complete');
+          setLoading(false);
         }
       }
 
-      if (mounted) {
-        setLoading(false);
-      }
     });
 
     // Cleanup function
