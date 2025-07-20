@@ -247,6 +247,7 @@ function App() {
         />
       </div>
     </Router>
+  )
   );
 }
 
