@@ -120,7 +120,13 @@ function App() {
     avatar_url: profile.avatar_url
   } : null;
 
-  console.log('App render - user:', !!user, 'profile:', !!profile, 'userWithProfile:', !!userWithProfile);
+  console.log('App render - user:', !!user, 'profile:', !!profile, 'loading:', loading, 'userWithProfile:', !!userWithProfile);
+  console.log('App render details - user.id:', user?.id, 'profile.id:', profile?.id);
+  
+  // Debug: Log when userWithProfile changes
+  React.useEffect(() => {
+    console.log('userWithProfile changed:', userWithProfile);
+  }, [userWithProfile]);
 
   return (
     <Router>

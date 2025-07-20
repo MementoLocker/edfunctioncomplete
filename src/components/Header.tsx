@@ -24,6 +24,7 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
   const navigate = useNavigate();
 
   console.log('Header render - user prop:', user);
+  console.log('Header render - user exists:', !!user, 'user name:', user?.name, 'user email:', user?.email);
 
   const navigationLinks = [
     { name: 'Home', href: '/' },

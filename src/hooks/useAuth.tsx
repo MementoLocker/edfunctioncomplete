@@ -95,7 +95,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Function to refresh profile data
   const refreshProfile = async () => {
     if (user) {
+      console.log('refreshProfile called for user:', user.id);
       const freshProfile = await fetchProfile(user.id);
+      console.log('refreshProfile completed, setting profile:', !!freshProfile);
       setProfile(freshProfile);
     }
   };
@@ -124,12 +126,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user && mounted) {
           console.log('Session found, setting user:', session.user.id);
           setUser(session.user);
+          console.log('User state set, now fetching profile...');
           
           // Fetch profile data
           const profileData = await fetchProfile(session.user.id);
           if (mounted) {
+            console.log('Profile data fetched, setting profile:', !!profileData);
             setProfile(profileData);
             console.log('Initial auth setup complete - user and profile set');
+            console.log('Final auth state - user:', !!session.user, 'profile:', !!profileData);
           }
         } else if (mounted) {
           console.log('No session found')
@@ -175,6 +180,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (mounted) {
           setProfile(profileData);
           console.log('Profile set, auth process complete');
+          console.log('Auth state change complete - user:', !!session.user, 'profile:', !!profileData);
           setLoading(false);
         }
       }
