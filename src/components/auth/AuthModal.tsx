@@ -3,7 +3,6 @@ import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { signUp, signIn } from '../../lib/supabase'
-import { useAuth } from '../../hooks/useAuth'
 import { ToastNotification } from '../ToastNotification'
 
 interface AuthModalProps {
@@ -29,9 +28,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showToast, setShowToast] = useState(false)
-  const { user } = useAuth()
-
-  console.log('AuthModal render - isOpen:', isOpen, 'mode:', mode);
 
   const {
     register,
@@ -40,53 +36,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     reset,
   } = useForm<FormData>()
 
-  // Close modal if user becomes authenticated
-  React.useEffect(() => {
-    if (user && isOpen) {
-      console.log('User authenticated, closing modal')
-      handleClose()
-    }
-  }, [user, isOpen])
-
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     setError(null)
-    console.log('Form submitted with mode:', mode, 'email:', data.email)
 
     try {
       if (mode === 'signup') {
-        console.log('Calling signUp...')
         const { error } = await signUp(data.email, data.password, data.name!)
-        console.log('SignUp completed, error:', error)
         if (error) throw error
         // Show custom toast notification instead of alert
         setShowToast(true)
-        handleClose()
+        reset()
+        onClose()
       } else {
-        console.log('Calling signIn...')
-        const { data: signInData, error } = await signIn(data.email, data.password)
-        console.log('SignIn completed, error:', error)
-        console.log('SignIn data:', signInData)
+        const { error } = await signIn(data.email, data.password)
         if (error) throw error
-        console.log('SignIn successful, closing modal')
-        // Successfully signed in
-        handleClose()
+        reset()
+        onClose()
       }
     } catch (err: any) {
-      console.error('Auth error:', err)
-      setError(err.message || 'Authentication failed. Please try again.')
-      setLoading(false)
+      setError(err.message)
     } finally {
-      console.log('Setting loading to false')
-      // Don't set loading to false here if successful, let the useEffect handle it
+      setLoading(false)
     }
   }
 
   const handleClose = () => {
-    console.log('Closing auth modal')
     reset()
     setError(null)
-    setLoading(false)
     onClose()
   }
 
@@ -146,7 +123,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         type="text"
                         className="w-full pl-10 pr-4 py-3 border border-dusty-200 rounded-lg focus:ring-2 focus:ring-dusty-500 focus:border-transparent"
                         placeholder="Enter your full name"
-                        disabled={loading}
                       />
                     </div>
                     {errors.name && (
@@ -172,7 +148,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="email"
                       className="w-full pl-10 pr-4 py-3 border border-dusty-200 rounded-lg focus:ring-2 focus:ring-dusty-500 focus:border-transparent"
                       placeholder="Enter your email"
-                      disabled={loading}
                     />
                   </div>
                   {errors.email && (
@@ -197,13 +172,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type={showPassword ? 'text' : 'password'}
                       className="w-full pl-10 pr-12 py-3 border border-dusty-200 rounded-lg focus:ring-2 focus:ring-dusty-500 focus:border-transparent"
                       placeholder="Enter your password"
-                      disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dusty-400 hover:text-dusty-600"
-                      disabled={loading}
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -218,14 +191,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   disabled={loading}
                   className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      {mode === 'signin' ? 'Signing In...' : 'Creating Account...'}
-                    </div>
-                  ) : (
-                    mode === 'signin' ? 'Sign In' : 'Create Account'
-                  )}
+                  {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
                 </button>
               </form>
 
@@ -235,7 +201,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <button
                     onClick={() => onModeChange(mode === 'signin' ? 'signup' : 'signin')}
                     className="ml-2 text-dusty-500 hover:text-dusty-700 font-medium"
-                    disabled={loading}
                   >
                     {mode === 'signin' ? 'Sign up' : 'Sign in'}
                   </button>

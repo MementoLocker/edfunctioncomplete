@@ -20,12 +20,6 @@ export const InstrumentalMusicSection: React.FC = () => {
       title: 'Sad Memory',
       genre: 'Cinematic Score',
       url: 'https://umrxpbudpexhgpnynstb.supabase.co/storage/v1/object/public/avatars//Sad%20Memory.wav'
-    },
-    {
-      id: 'journey',
-      title: 'Journey',
-      genre: 'Cinematic Score',
-      url: 'https://umrxpbudpexhgpnynstb.supabase.co/storage/v1/object/public/avatars//Journey.mp3'
     }
   ];
 

@@ -23,9 +23,6 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
   const location = useLocation();
   const navigate = useNavigate();
 
-  console.log('Header render - user prop:', user);
-  console.log('Header render - user exists:', !!user, 'user name:', user?.name, 'user email:', user?.email);
-
   const navigationLinks = [
     { name: 'Home', href: '/' },
     { name: 'Custom Song', href: '/custom-song' },
@@ -219,9 +216,7 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
                         </Link>
                         <button
                           onClick={() => {
-                            if (onSignOut) {
-                              onSignOut();
-                            }
+                            onSignOut?.();
                             setIsUserMenuOpen(false);
                           }}
                           className="flex items-center w-full px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -236,7 +231,6 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
               ) : (
                 <button
                   onClick={onSignIn}
-                  onMouseDown={() => console.log('Sign In button clicked')}
                   className="btn-primary"
                 >
                   Sign In
@@ -342,9 +336,7 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
                       </Link>
                       <button
                         onClick={() => {
-                          if (onSignOut) {
-                            onSignOut();
-                          }
+                          onSignOut?.();
                           setIsMenuOpen(false);
                         }}
                         className="flex items-center w-full px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors rounded-none"

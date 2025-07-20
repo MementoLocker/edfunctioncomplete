@@ -28,7 +28,7 @@ const pricingTiers = [
     color: 'green',
     storage: '3GB',
     capsules: '1 capsule',
-    priceId: null
+    priceId: null // No price ID for free tier
   },
   {
     name: 'Keepsake',
@@ -46,7 +46,7 @@ const pricingTiers = [
     color: 'amber',
     storage: '10GB',
     capsules: '5 capsules/month',
-    priceId: 'price_1RmO6mBOaon0OwkPSX25QVac'
+    priceId: 'price_1RmO6mBOaon0OwkPSX25QVac' // Your Live Price ID
   },
   {
     name: 'Heirloom',
@@ -64,7 +64,7 @@ const pricingTiers = [
     color: 'orange',
     storage: '25GB',
     capsules: '8 capsules/month',
-    priceId: 'price_1RmO7rBOaon0OwkPc1i7XUW2'
+    priceId: 'price_1RmO7rBOaon0OwkPc1i7XUW2' // Your Live Price ID
   },
   {
     name: 'Legacy',
@@ -84,7 +84,7 @@ const pricingTiers = [
     color: 'red',
     storage: '100GB',
     capsules: 'Unlimited capsules',
-    priceId: 'price_1RmO8nBOaon0OwkPk6qfS5RE'
+    priceId: 'price_1RmO8nBOaon0OwkPk6qfS5RE' // Your Live Price ID
   }
 ];
 
@@ -105,7 +105,7 @@ const musicTier = {
   color: 'purple',
   storage: 'Unlimited Downloads',
   capsules: 'Music Library Access',
-  priceId: 'price_1RmO9UBOaon0OwkPqJ8cIMZA'
+  priceId: 'price_1RmO9UBOaon0OwkPqJ8cIMZA' // Your Live Price ID
 };
 
 const currencies = [
@@ -141,33 +141,44 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
     }
 
     if (!user) {
-      alert("Please sign up or log in to subscribe.");
+      console.log("User not authenticated, showing signup modal");
       onSignUp?.();
       return;
     }
 
     if (!priceId) {
-      alert('Configuration error: This plan is missing a Price ID.');
+      console.error('Missing price ID for tier:', tierName);
+      alert('Configuration error: This plan is missing a Price ID. Please contact support.');
       return;
     }
 
     try {
+      console.log('Starting checkout process for:', tierName, 'Price ID:', priceId);
+      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('User session not found. Please log in again.');
 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { priceId },
+        body: {
+          priceId: priceId,
+          successUrl: `${window.location.origin}/payment-success`,
+          cancelUrl: window.location.href
+        },
         headers: {
           Authorization: `Bearer ${session.access_token}`
         }
       });
 
       if (error) throw error;
+        console.error('Edge Function error:', error);
 
+      console.log('Edge Function response:', data);
+      
       if (data.url) {
+        console.log('Redirecting to Stripe Checkout:', data.url);
         window.location.href = data.url;
       } else {
-        throw new Error('No checkout URL received');
+        throw new Error('No checkout URL received from payment service');
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
@@ -402,54 +413,16 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
 
             <div className="mt-auto">
               <button
+                // The Music Pro plan is not yet active
                 onClick={() => handleSubscribe(musicTier.name, musicTier.priceId)}
                 disabled={true}
-                className="w-full py-4 px-6 rounded-none font-medium transition-all duration-500 tracking-wide uppercase text-sm bg-gray-300 text-gray-500 cursor-not-allowed"
+                className="w-full py-4 px-6 rounded-none font-medium transition-all duration-500 tracking-wide uppercase text-sm btn-secondary opacity-50 cursor-not-allowed"
               >
-                Coming Soon
+                {musicTier.cta}
               </button>
             </div>
           </motion.div>
         </div>
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.4 }}
-          viewport={{ once: true }}
-          className="text-center mt-20"
-        >
-          <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-none p-12 max-w-4xl mx-auto">
-            <h3 className="text-2xl font-semibold text-gray-800 mb-6" style={{ fontFamily: 'Playfair Display, serif' }}>
-              🎁 Free Trial Explained
-            </h3>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              Professional-grade audio files will be ready for your projects.
-              To unlock sending capabilities, simply share MementoLocker on 3 social media platforms 
-              (Facebook, Twitter/X, Instagram) or upgrade to any paid plan.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-              <div className="bg-white rounded-none p-6">
-                <strong className="text-amber-800">✓ Full Design Access</strong>
-                <p className="text-gray-500 mt-2">Use all customization features</p>
-              </div>
-              <div className="bg-white rounded-none p-6">
-                <strong className="text-amber-700">✓ Social Unlock</strong>
-                <p className="text-gray-500 mt-2">Share on 3 platforms to send</p>
-              </div>
-              <div className="bg-white rounded-none p-6">
-                <strong className="text-green-700">✓ 30-Day Trial</strong>
-                <p className="text-gray-500 mt-2">Full access for one month</p>
-              </div>
-            </div>
-          </div>
-
-          <p className="text-gray-600 mt-12 mb-4 tracking-wide uppercase text-sm">
-            Cancel anytime • No hidden fees
-          </p>
-          <p className="text-sm text-gray-500">
-            Prices shown in {selectedCurrency.code}. Local taxes may apply.
-          </p>
-        </motion.div>
       </div>
     </section>
   );

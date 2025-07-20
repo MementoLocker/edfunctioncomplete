@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Calendar, Upload, CreditCard, User, Camera, Package, Clock, CheckCircle, Mail, Trash2, UserCheck, UserX, Shield, Star, Music, Infinity, HeadphonesIcon, MessageCircle, X } from 'lucide-react';
+import { Crown, Calendar, Upload, CreditCard, User, Camera, Package, Clock, CheckCircle, Mail, Trash2, UserCheck, UserX, Shield, Star, Music, Infinity, HeadphonesIcon, MessageCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ToastNotification } from '../components/ToastNotification';
 
 export const Subscription: React.FC = () => {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [sponsorEmail, setSponsorEmail] = useState('');
@@ -35,12 +36,24 @@ export const Subscription: React.FC = () => {
   const getSubscriptionStatus = () => {
     if (!profile) return '30-Day Free Trial';
     
-    // PRIORITY: If subscription_status is 'free', always show free trial regardless of stripe_price_id
-    if (profile.subscription_status === 'free') {
-      return '30-Day Free Trial';
+    // If we have a stripe_price_id, use that to determine the plan
+    if (profile.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      switch (planName) {
+        case 'keepsake':
+          return 'Keepsake Plan';
+        case 'heirloom':
+          return 'Heirloom Plan';
+        case 'legacy':
+          return 'Legacy Plan';
+        case 'music':
+          return 'Music Pro Plan';
+        default:
+          return 'Premium Plan';
+      }
     }
     
-    // Use subscription_status from database
+    // Fallback to subscription_status
     switch (profile.subscription_status) {
       case 'active':
         return 'Premium Plan';
@@ -51,7 +64,7 @@ export const Subscription: React.FC = () => {
       case 'cancelled':
         return 'Cancelled';
       default:
-        return 'Free Account';
+        return '30-Day Free Trial';
     }
   };
 
@@ -62,27 +75,38 @@ export const Subscription: React.FC = () => {
   };
 
   useEffect(() => {
-    if (profile) {
-      calculateTrialDays();
-      if (profile.subscription_status === 'active' || profile.subscription_status === 'legacy') {
-        fetchSponsors();
-      }
-      setLoading(false);
+    if (user) {
+      fetchProfile();
     }
-  }, [profile, location.pathname]);
+  }, [user, location.pathname]);
 
-  const calculateTrialDays = () => {
-    if (profile?.trial_end_date) {
-      try {
-        const endDate = new Date(profile.trial_end_date);
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (error) throw error;
+
+      setProfile(data);
+
+      if (data.trial_end_date) {
+        const endDate = new Date(data.trial_end_date);
         const today = new Date();
         const diffTime = endDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         setTrialDaysRemaining(Math.max(0, diffDays));
-      } catch (error) {
-        console.error('Error calculating trial days:', error);
-        setTrialDaysRemaining(0);
       }
+      
+      if (data.subscription_status === 'active') {
+        fetchSponsors();
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -161,46 +185,8 @@ export const Subscription: React.FC = () => {
     navigate('/#pricing');
   };
 
-  const handleManageBilling = async () => {
-    if (!profile?.stripe_customer_id) {
-      triggerToast('No billing information found. Please contact support.', 'error');
-      return;
-    }
-
-    try {
-      // Create a billing portal session
-      const { data, error } = await supabase.functions.invoke('create-billing-portal', {
-        body: { customerId: profile.stripe_customer_id },
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No billing portal URL received');
-      }
-    } catch (error) {
-      console.error('Error creating billing portal session:', error);
-      triggerToast('Unable to access billing portal. Please contact support.', 'error');
-    }
-  };
   const handleCancelSubscription = () => {
-    const confirmCancel = window.confirm(
-      'Are you sure you want to cancel your subscription?\n\n' +
-      '• Your subscription will remain active until the end of your current billing period\n' +
-      '• You can still access all features until then\n' +
-      '• Your time capsules and data will be preserved\n' +
-      '• You can resubscribe at any time\n\n' +
-      'Click OK to proceed to the billing portal where you can cancel.'
-    );
-    
-    if (confirmCancel) {
-      handleManageBilling();
-    }
+    alert('Cancel subscription functionality will be connected to Stripe customer portal.');
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,8 +223,7 @@ export const Subscription: React.FC = () => {
         throw updateError;
       }
 
-      // Refresh the user profile data
-      await refreshProfile();
+      await fetchProfile();
     } catch (error: any) {
       alert('Error uploading avatar: ' + error.message);
     } finally {
@@ -306,6 +291,20 @@ export const Subscription: React.FC = () => {
   };
 
   const getStorageLimit = () => {
+    if (profile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      switch (planName) {
+        case 'keepsake':
+          return '10GB';
+        case 'heirloom':
+          return '25GB';
+        case 'legacy':
+          return '100GB';
+        default:
+          return '25GB';
+      }
+    }
+    
     switch (profile?.subscription_status) {
       case 'active':
         return '25GB';
@@ -319,6 +318,20 @@ export const Subscription: React.FC = () => {
   };
 
   const getCapsuleLimit = () => {
+    if (profile?.stripe_price_id) {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      switch (planName) {
+        case 'keepsake':
+          return '5 per month';
+        case 'heirloom':
+          return '8 per month';
+        case 'legacy':
+          return 'Unlimited';
+        default:
+          return '8 per month';
+      }
+    }
+    
     switch (profile?.subscription_status) {
       case 'legacy':
         return 'Unlimited';
@@ -334,6 +347,13 @@ export const Subscription: React.FC = () => {
   const handleContactSupport = () => {
     navigate('/contact');
   };
+
+  const userWithProfile = user ? {
+    ...user,
+    name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    email: user.email!,
+    avatar_url: profile?.avatar_url
+  } : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -368,7 +388,7 @@ export const Subscription: React.FC = () => {
                   {profile?.avatar_url ? (
                     <img
                       src={profile.avatar_url}
-                      alt={profile?.name || 'Profile'}
+                      alt={userWithProfile?.name || 'Profile'}
                       className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-white"
                     />
                   ) : (
@@ -394,7 +414,7 @@ export const Subscription: React.FC = () => {
                 )}
 
                 <h2 className="text-2xl font-serif font-medium text-gray-800 mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  {profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'}
+                  {userWithProfile?.name}
                 </h2>
                 <p className="text-gray-500 mb-6">{user.email}</p>
                 
@@ -499,22 +519,10 @@ export const Subscription: React.FC = () => {
                   
                   {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && (
                     <button
-                      onClick={handleManageBilling}
-                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2"
-                    >
-                      <CreditCard className="w-5 h-5" />
-                      <span>Manage Billing</span>
-                    </button>
-                  )}
-                  
-                  {/* Cancel Subscription Button - Only for paid users */}
-                  {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && (
-                    <button
                       onClick={handleCancelSubscription}
-                      className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 border border-red-200 hover:border-red-300 flex items-center justify-center space-x-2"
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300"
                     >
-                      <X className="w-5 h-5" />
-                      <span>Cancel Subscription</span>
+                      Manage Billing
                     </button>
                   )}
                 </div>
@@ -522,7 +530,7 @@ export const Subscription: React.FC = () => {
             </motion.div>
 
             {/* Legacy Plan Benefits */}
-            {profile?.subscription_status === 'legacy' && (
+            {(profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -581,6 +589,125 @@ export const Subscription: React.FC = () => {
               </motion.div>
             )}
 
+            {/* Keepsake Plan Benefits */}
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'keepsake') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Star className="w-6 h-6 mr-3 text-amber-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Keepsake Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">5 Time Capsules per Month</div>
+                        <div className="text-sm text-gray-500">Perfect for individuals</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">10GB Storage</div>
+                        <div className="text-sm text-gray-500">Secure cloud storage</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">All Customization Features</div>
+                        <div className="text-sm text-gray-500">Full design control</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Customer Support</div>
+                        <div className="text-sm text-gray-500">Email support included</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Heirloom Plan Benefits */}
+            {(profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'heirloom') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                  <div className="flex items-center mb-6">
+                    <Crown className="w-6 h-6 mr-3 text-orange-600" />
+                    <h3 className="text-xl font-serif font-medium text-gray-800" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      Heirloom Plan Benefits
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">8 Time Capsules per Month</div>
+                        <div className="text-sm text-gray-500">Great for families</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">25GB Storage</div>
+                        <div className="text-sm text-gray-500">Generous storage capacity</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">All Customization Features</div>
+                        <div className="text-sm text-gray-500">Full design control</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Customer Support</div>
+                        <div className="text-sm text-gray-500">Priority email support</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
             {/* Trial Benefits */}
             {profile?.subscription_status === 'trial' && (
               <motion.div
@@ -613,7 +740,7 @@ export const Subscription: React.FC = () => {
             )}
 
             {/* Advanced Scheduling - Sponsors Section */}
-            {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy') && (
+            {(profile?.subscription_status === 'active' || profile?.subscription_status === 'legacy' || (profile?.stripe_price_id && getPlanNameFromPriceId(profile.stripe_price_id) === 'legacy')) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

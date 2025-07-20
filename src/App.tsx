@@ -24,7 +24,7 @@ import { MusicLibrary } from './pages/MusicLibrary';
 import { SponsorDashboard } from './pages/SponsorDashboard';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { useAuth } from './hooks/useAuth';
-import { ExitIntentModal } from './components/ExitIntentModal';
+import { signOut, supabase } from './lib/supabase';
 
 // Scroll to top component
 function ScrollToTop() {
@@ -54,49 +54,108 @@ function ScrollToTop() {
 }
 
 function App() {
-  const { user, profile, loading, signOut, refreshProfile } = useAuth();
+  const { user, loading } = useAuth();
   const [authModal, setAuthModal] = useState<{ isOpen: boolean; mode: 'signin' | 'signup' }>({
     isOpen: false,
     mode: 'signin'
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Show welcome modal for new users
+  // Check for first-time login and show welcome modal
   useEffect(() => {
-    if (user && profile && !loading) {
-      // Check if this is a new user (just created profile)
-      const profileCreatedAt = new Date(profile.created_at);
-      const now = new Date();
-      const timeDiff = now.getTime() - profileCreatedAt.getTime();
-      const minutesDiff = timeDiff / (1000 * 60);
-      
-      // If profile was created within the last 5 minutes, show welcome modal
-      if (minutesDiff < 5 && profile.subscription_status === 'trial') {
+    if (user && !loading) {
+      checkFirstTimeLogin();
+      fetchUserProfile();
+    }
+  }, [user, loading]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const checkFirstTimeLogin = async () => {
+    if (!user) return;
+
+    try {
+      // Check if user has a profile and if it's their first login
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code === 'PGRST116') {
+        // Profile doesn't exist, create it and set up trial
+        const trialStartDate = new Date();
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 30);
+
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            name: user.user_metadata?.name || user.email?.split('@')[0],
+            email: user.email,
+            subscription_status: 'trial',
+            trial_start_date: trialStartDate.toISOString(),
+            trial_end_date: trialEndDate.toISOString(),
+            capsules_sent: 0,
+            social_shares_completed: 0
+          });
+
+        if (insertError) throw insertError;
+
+        // Show welcome modal for new users
+        setShowWelcomeModal(true);
+      } else if (profile && profile.subscription_status === 'trial' && !profile.trial_start_date) {
+        // Existing user but trial not set up properly
+        const trialStartDate = new Date();
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 30);
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            subscription_status: 'trial',
+            trial_start_date: trialStartDate.toISOString(),
+            trial_end_date: trialEndDate.toISOString()
+          })
+          .eq('id', user.id);
+
+        if (updateError) throw updateError;
+
         setShowWelcomeModal(true);
       }
+    } catch (error) {
+      console.error('Error checking first time login:', error);
     }
-  }, [user, profile, loading]);
+  };
 
   const handleSignIn = () => {
-    console.log('handleSignIn called - opening modal');
     setAuthModal({ isOpen: true, mode: 'signin' });
   };
 
   const handleSignUp = () => {
-    console.log('handleSignUp called - opening modal');
     setAuthModal({ isOpen: true, mode: 'signup' });
   };
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      
-      // Redirect to home page
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Sign out error:', error);
-      alert('Failed to sign out. Please try again.');
-    }
+    await signOut();
+    setUserProfile(null);
   };
 
   const handleGetStarted = () => {
@@ -110,38 +169,44 @@ function App() {
   };
 
   const handleUpgradeClick = () => {
-    window.location.href = '/subscription';
+    setShowWelcomeModal(false);
+    // Navigate to pricing section
+    setTimeout(() => {
+      window.location.href = '/#pricing';
+    }, 100);
   };
 
-  // Create user object with profile data for Header component
-  const userWithProfile = user && profile ? {
-    name: profile.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-    email: user.email || '',
-    avatar_url: profile.avatar_url
-  } : null;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2" style={{ borderColor: '#C0A172' }}></div>
+      </div>
+    );
+  }
 
-  console.log('App render - user:', !!user, 'profile:', !!profile, 'loading:', loading, 'userWithProfile:', !!userWithProfile);
-  console.log('App render details - user.id:', user?.id, 'profile.id:', profile?.id);
-  
-  // Debug: Log when userWithProfile changes
-  React.useEffect(() => {
-    console.log('userWithProfile changed:', userWithProfile);
-  }, [userWithProfile]);
+  const userWithProfile = user ? {
+    ...user,
+    name: userProfile?.name || user.user_metadata?.name || user.email!.split('@')[0],
+    email: user.email!,
+    avatar_url: userProfile?.avatar_url
+  } : null;
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <ScrollToTop />
-        
-        <Header
+      <ScrollToTop />
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header 
           user={userWithProfile}
-          onSignIn={handleSignIn}
+          onSignIn={handleSignIn} 
           onSignOut={handleSignOut}
         />
         
         <main className="flex-1">
           <Routes>
-            <Route path="/" element={<Home onGetStarted={handleGetStarted} />} />
+            <Route 
+              path="/" 
+              element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} 
+            />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<FAQ />} />
@@ -164,7 +229,6 @@ function App() {
         
         <Footer onSignIn={handleSignIn} />
         <CookieConsent />
-        <ExitIntentModal />
         
         <AuthModal
           isOpen={authModal.isOpen}
@@ -172,7 +236,7 @@ function App() {
           mode={authModal.mode}
           onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
         />
-        
+
         <WelcomeModal
           isOpen={showWelcomeModal}
           onClose={() => setShowWelcomeModal(false)}
