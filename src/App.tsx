@@ -234,9 +234,22 @@ function App() {
             onClose={() => setShowWelcomeModal(false)}
             onUpgrade={handleUpgradeClick}
           />
+        </div>
+        
+        <AuthModal
+          isOpen={authModal.isOpen}
+          onClose={() => setAuthModal({ ...authModal, isOpen: false })}
+          mode={authModal.mode}
+          onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
+        />
+        
+        <WelcomeModal
+          isOpen={showWelcomeModal}
+          onClose={() => setShowWelcomeModal(false)}
+          onUpgrade={handleUpgradeClick}
+        />
         </AuthProvider>
       </Router>
-    </AuthProvider>
   );
 }
 
