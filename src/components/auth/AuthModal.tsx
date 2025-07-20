@@ -31,6 +31,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showToast, setShowToast] = useState(false)
   const { user } = useAuth()
 
+  console.log('AuthModal render - isOpen:', isOpen, 'mode:', mode);
+
   const {
     register,
     handleSubmit,

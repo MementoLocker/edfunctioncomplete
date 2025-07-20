@@ -78,10 +78,12 @@ function App() {
   }, [user, profile, loading]);
 
   const handleSignIn = () => {
+    console.log('handleSignIn called - opening modal');
     setAuthModal({ isOpen: true, mode: 'signin' });
   };
 
   const handleSignUp = () => {
+    console.log('handleSignUp called - opening modal');
     setAuthModal({ isOpen: true, mode: 'signup' });
   };
 

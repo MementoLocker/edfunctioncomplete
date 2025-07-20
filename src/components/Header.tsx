@@ -233,6 +233,7 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
               ) : (
                 <button
                   onClick={onSignIn}
+                  onMouseDown={() => console.log('Sign In button clicked')}
                   className="btn-primary"
                 >
                   Sign In
