@@ -65,7 +65,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
                   <li>• Upload and organize your content</li>
                   <li>• Create and customize time capsules</li>
                   <li>• Send 1 complete time capsule</li>
-                  <li>• 5GB of secure storage</li>
+                  <li>• 3GB of secure storage</li>
                 </ul>
               </div>
 
