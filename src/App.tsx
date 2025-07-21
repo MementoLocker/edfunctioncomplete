@@ -4,7 +4,6 @@ import Header from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
 import { AuthModal } from './components/auth/AuthModal';
-import { WelcomeModal } from './components/WelcomeModal';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
@@ -23,8 +22,7 @@ import { ClientReviews } from './pages/ClientReviews';
 import { MusicLibrary } from './pages/MusicLibrary';
 import { SponsorDashboard } from './pages/SponsorDashboard';
 import { PaymentSuccess } from './pages/PaymentSuccess';
-import { useAuth } from './hooks/useAuth'; // This will now import from our corrected useAuth.tsx
-import { supabase } from './lib/supabase';
+import { useAuth } from './hooks/useAuth';
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -46,52 +44,18 @@ function ScrollToTop() {
 }
 
 function App() {
-  // FIXED: Get user, profile, loading state, and signOut function directly from the corrected useAuth hook.
+  // Get user, profile, loading state, and signOut function from useAuth hook
   const { user, profile, loading, signOut } = useAuth();
   
   const [authModal, setAuthModal] = useState<{ isOpen: boolean; mode: 'signin' | 'signup' }>({
     isOpen: false,
     mode: 'signin'
   });
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-
-  // This logic now correctly uses the profile from the useAuth hook
-  useEffect(() => {
-    if (user && !loading && !profile) {
-      checkFirstTimeLogin();
-    }
-  }, [user, loading, profile]);
-
-  const checkFirstTimeLogin = async () => {
-    if (!user || profile) return; // If profile already exists, do nothing
-
-    try {
-        const trialStartDate = new Date();
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 30);
-
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            name: user.user_metadata?.name || user.email?.split('@')[0],
-            email: user.email,
-            subscription_status: 'trial',
-            trial_start_date: trialStartDate.toISOString(),
-            trial_end_date: trialEndDate.toISOString(),
-          });
-
-        if (insertError) throw insertError;
-        setShowWelcomeModal(true);
-    } catch (error) {
-      console.error('Error creating profile for first-time login:', error);
-    }
-  };
 
   const handleSignIn = () => setAuthModal({ isOpen: true, mode: 'signin' });
   const handleSignUp = () => setAuthModal({ isOpen: true, mode: 'signup' });
 
-  // FIXED: The signOut function now comes directly from our useAuth hook
+  // The signOut function comes directly from our useAuth hook
   const handleSignOut = async () => {
     await signOut();
   };
@@ -104,12 +68,6 @@ function App() {
     }
   };
 
-  const handleUpgradeClick = () => {
-    setShowWelcomeModal(false);
-    setTimeout(() => {
-      window.location.href = '/#pricing';
-    }, 100);
-  };
 
   if (loading) {
     return (
@@ -123,7 +81,7 @@ function App() {
     );
   }
 
-  // FIXED: This now correctly uses the profile from the useAuth hook
+  // Create user object with profile data for header
   const userWithProfile = user ? {
     ...user,
     name: profile?.name || user.user_metadata?.name || user.email!.split('@')[0],
@@ -175,12 +133,6 @@ function App() {
           onClose={() => setAuthModal({ ...authModal, isOpen: false })}
           mode={authModal.mode}
           onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
-        />
-
-        <WelcomeModal
-          isOpen={showWelcomeModal}
-          onClose={() => setShowWelcomeModal(false)}
-          onUpgradeClick={handleUpgradeClick}
         />
       </div>
     </Router>
