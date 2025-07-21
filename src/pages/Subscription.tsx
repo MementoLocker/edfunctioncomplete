@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth'; // We will now use the profile from here
+import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ToastNotification } from '../components/ToastNotification';
 import { Calendar, Users, Edit, Save, X, Package, User as UserIcon, Plus, Trash2, CreditCard, Shield, Star, Music, Infinity, MessageCircle, CheckCircle } from 'lucide-react';
 
-// NOTE: This interface can be simplified as we get the full profile from useAuth, but we'll leave it for now.
 interface Capsule {
   id: string;
   user_id: string;
@@ -20,14 +19,9 @@ interface Capsule {
 }
 
 export const Subscription: React.FC = () => {
-  // FIXED: Get user AND profile directly from our corrected useAuth hook. This is the main fix.
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
-  // DELETED: The separate, buggy profile fetching logic has been removed.
-  // const [profile, setProfile] = useState<any>(null);
-  // const [loading, setLoading] = useState(true);
-
   const [uploading, setUploading] = useState(false);
   const [sponsorEmail, setSponsorEmail] = useState('');
   const [sponsorsList, setSponsorsList] = useState<any[]>([]);
@@ -39,7 +33,6 @@ export const Subscription: React.FC = () => {
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
-  // This function maps the Stripe Price ID from the profile to a human-readable name
   const getPlanNameFromPriceId = (priceId: string | null) => {
     if (!priceId) return null;
     const priceIdMap: { [key: string]: string } = {
@@ -52,7 +45,7 @@ export const Subscription: React.FC = () => {
   };
 
   const getSubscriptionStatus = () => {
-    if (!profile) return '...'; // Return a loading state if profile is not yet available
+    if (!profile) return '...';
     
     const planName = getPlanNameFromPriceId(profile.stripe_price_id);
 
@@ -62,11 +55,10 @@ export const Subscription: React.FC = () => {
             case 'heirloom': return 'Heirloom Plan';
             case 'legacy': return 'Legacy Plan';
             case 'music': return 'Music Pro Plan';
-            default: return 'Active Subscription'; // Fallback for active status
+            default: return 'Active Subscription';
         }
     }
     
-    // Fallback for other statuses like 'trial', 'free', 'cancelled'
     switch (profile.subscription_status) {
         case 'trial': return '30-Day Free Trial';
         case 'cancelled': return 'Cancelled';
@@ -81,7 +73,6 @@ export const Subscription: React.FC = () => {
     setShowToast(true);
   };
 
-  // This useEffect now just handles fetching sponsors if the user has an active sub
   useEffect(() => {
     if (user && profile) {
       if (profile.subscription_status === 'active') {
@@ -95,13 +86,22 @@ export const Subscription: React.FC = () => {
         setTrialDaysRemaining(Math.max(0, diffDays));
       }
     }
-  }, [user, profile]); // Depend on the profile from useAuth
+  }, [user, profile]);
 
   const fetchSponsors = async () => {
-    // ... (fetchSponsors function remains the same)
+    try {
+      const { data, error } = await supabase
+        .from('sponsors')
+        .select('*')
+        .eq('subscriber_id', user?.id);
+
+      if (error) throw error;
+      setSponsorsList(data || []);
+    } catch (error) {
+      console.error('Error fetching sponsors:', error);
+    }
   };
 
-  // ... (All other handler functions like handleAddSponsor, handleCancelSubscription, etc. remain the same)
   const handleCancelSubscription = async () => {
     if (!profile?.stripe_customer_id) {
       triggerToast('No active subscription found to cancel.', 'error');
@@ -115,7 +115,6 @@ export const Subscription: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('User session not found. Please log in again.');
 
-      // NOTE: You will need to create this 'create-billing-portal' function in Supabase
       const { data, error } = await supabase.functions.invoke('create-billing-portal', {
         body: { customerId: profile.stripe_customer_id },
       });
@@ -133,10 +132,36 @@ export const Subscription: React.FC = () => {
       setCancellingSubscription(false);
     }
   };
-  
-  // All other functions like handleAvatarUpload, getCapsuleLimit, etc. should be here...
-  // For brevity, I'm omitting them but they should be present in your final code.
-  // The important part is that they all use the `profile` object from `useAuth`.
+
+  const getCapsuleLimit = () => {
+    if (!profile) return 0;
+    const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+    
+    switch (planName) {
+      case 'keepsake': return 5;
+      case 'heirloom': return 8;
+      case 'legacy': return 999; // Unlimited
+      default: return profile.subscription_status === 'trial' ? 1 : 0;
+    }
+  };
+
+  const getStorageLimit = () => {
+    if (!profile) return '0GB';
+    const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+    
+    switch (planName) {
+      case 'keepsake': return '10GB';
+      case 'heirloom': return '25GB';
+      case 'legacy': return '100GB';
+      default: return profile.subscription_status === 'trial' ? '5GB' : '0GB';
+    }
+  };
+
+  const isPaidUser = () => {
+    return profile?.subscription_status === 'active' || 
+           profile?.subscription_status === 'legacy' ||
+           profile?.stripe_price_id;
+  };
 
   if (authLoading) {
     return (
@@ -160,11 +185,162 @@ export const Subscription: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Subscription</h1>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p>Subscription content goes here...</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <h1 className="text-3xl font-bold text-gray-900 mb-8" style={{ fontFamily: 'Playfair Display, serif' }}>
+            My Subscription
+          </h1>
+
+          {/* Current Plan Card */}
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">Current Plan</h2>
+                <p className="text-2xl font-bold" style={{ color: '#C0A172' }}>
+                  {getSubscriptionStatus()}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Storage</div>
+                <div className="text-lg font-semibold">{getStorageLimit()}</div>
+              </div>
+            </div>
+
+            {profile?.subscription_status === 'trial' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 text-blue-600 mr-3" />
+                  <div>
+                    <p className="text-blue-800 font-medium">
+                      Free Trial Active - {trialDaysRemaining} days remaining
+                    </p>
+                    <p className="text-blue-600 text-sm">
+                      Upgrade anytime to unlock unlimited features
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Package className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+                <div className="text-lg font-semibold text-gray-800">
+                  {getCapsuleLimit() === 999 ? 'Unlimited' : getCapsuleLimit()}
+                </div>
+                <div className="text-sm text-gray-500">Capsules/month</div>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Shield className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+                <div className="text-lg font-semibold text-gray-800">Secure</div>
+                <div className="text-sm text-gray-500">Encrypted storage</div>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Users className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+                <div className="text-lg font-semibold text-gray-800">Unlimited</div>
+                <div className="text-sm text-gray-500">Recipients</div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => navigate('/#pricing')}
+                className="btn-primary flex-1"
+              >
+                {profile?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Change Plan'}
+              </button>
+              
+              {isPaidUser() && (
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={cancellingSubscription}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center"
+                >
+                  {cancellingSubscription ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Opening Portal...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Manage Subscription
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Account Information */}
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Account Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <div className="text-gray-900">{profile?.name || 'Not set'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <div className="text-gray-900">{profile?.email || user.email}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+                <div className="text-gray-900">
+                  {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Capsules Sent</label>
+                <div className="text-gray-900">{profile?.capsules_sent || 0}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                onClick={() => navigate('/create-capsule')}
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+              >
+                <Plus className="w-6 h-6 text-blue-600 mb-2" />
+                <div className="font-medium text-gray-800">Create Capsule</div>
+                <div className="text-sm text-gray-500">Start a new time capsule</div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/my-capsules')}
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+              >
+                <Package className="w-6 h-6 text-green-600 mb-2" />
+                <div className="font-medium text-gray-800">My Capsules</div>
+                <div className="text-sm text-gray-500">View all capsules</div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/contact')}
+                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+              >
+                <MessageCircle className="w-6 h-6 text-purple-600 mb-2" />
+                <div className="font-medium text-gray-800">Get Support</div>
+                <div className="text-sm text-gray-500">Contact our team</div>
+              </button>
+            </div>
+          </div>
+        </motion.div>
       </div>
+
+      <ToastNotification
+        message={toastMessage}
+        isVisible={showToast}
+        onHide={() => setShowToast(false)}
+        type={toastType}
+      />
     </div>
   );
 };
