@@ -136,37 +136,45 @@ export const Subscription: React.FC = () => {
   const getCapsuleLimit = () => {
     if (!profile) return 0;
     
-    // Check for trial status first
+    // Check subscription status first
     if (profile.subscription_status === 'trial') {
-      return 1;
+      return 1; // Trial gets 1 capsule
     }
     
-    const planName = getPlanNameFromPriceId(profile.stripe_price_id);
-    
-    switch (planName) {
-      case 'keepsake': return 5;
-      case 'heirloom': return 8;
-      case 'legacy': return 999; // Unlimited
-      default: return 0;
+    if (profile.subscription_status === 'active') {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      
+      switch (planName) {
+        case 'keepsake': return 5;
+        case 'heirloom': return 8;
+        case 'legacy': return 999; // Unlimited
+        default: return 0;
+      }
     }
+    
+    return 0; // Free or other statuses
   };
 
   const getStorageLimit = () => {
     if (!profile) return '0GB';
     
-    // Check for trial status first
+    // Check subscription status first
     if (profile.subscription_status === 'trial') {
-      return '3GB';
+      return '3GB'; // Trial gets 3GB
     }
     
-    const planName = getPlanNameFromPriceId(profile.stripe_price_id);
-    
-    switch (planName) {
-      case 'keepsake': return '10GB';
-      case 'heirloom': return '25GB';
-      case 'legacy': return '100GB';
-      default: return '0GB';
+    if (profile.subscription_status === 'active') {
+      const planName = getPlanNameFromPriceId(profile.stripe_price_id);
+      
+      switch (planName) {
+        case 'keepsake': return '10GB';
+        case 'heirloom': return '25GB';
+        case 'legacy': return '100GB';
+        default: return '0GB';
+      }
     }
+    
+    return '0GB'; // Free or other statuses
   };
 
   const isPaidUser = () => {
