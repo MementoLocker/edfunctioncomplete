@@ -371,6 +371,39 @@
     .pricing-card.popular {
       transform: none;
     }
+    
+    /* Fix mobile navigation text overflow */
+    .nav-link {
+      @apply text-xs px-2 py-2;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.2;
+    }
+    
+    /* Mobile menu improvements */
+    .lg\\:hidden .nav-link {
+      @apply text-sm px-4 py-3;
+      white-space: normal;
+    }
+    
+    /* Mobile tab navigation fixes */
+    .mobile-tab-nav {
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    .mobile-tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .mobile-tab-nav .nav-item {
+      flex-shrink: 0;
+      min-width: fit-content;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      text-align: center;
+    }
   }
 
   /* Smooth Scrolling */

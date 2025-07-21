@@ -50,8 +50,8 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
       } else {
         // If we're on a different page, navigate to homepage and then scroll
         navigate('/');
-        // Use a more reliable method to wait for the page to load
-        const checkAndScroll = () => {
+        // Wait for navigation to complete, then scroll
+        setTimeout(() => {
           const element = document.getElementById(section);
           if (element) {
             const headerHeight = 80;
@@ -60,13 +60,8 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
               top: elementPosition,
               behavior: 'smooth'
             });
-          } else {
-            // If element not found, try again after a short delay
-            setTimeout(checkAndScroll, 50);
           }
-        };
-        // Start checking after a brief delay to allow navigation to complete
-        setTimeout(checkAndScroll, 100);
+        }, 300); // Increased delay for better reliability
       }
     }
     setIsMenuOpen(false);

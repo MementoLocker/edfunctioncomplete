@@ -133,7 +133,8 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSignIn, onSign
   const handleSubscribe = async (tierName: string, priceId?: string | null) => {
     if (tierName === 'Free Trial') {
       if (user) {
-        window.location.href = '/create-capsule';
+        // User is already signed up, just redirect to create capsule
+        navigate('/create-capsule');
       } else {
         onSignUp?.();
       }

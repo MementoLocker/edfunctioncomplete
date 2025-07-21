@@ -47,6 +47,11 @@ export const Subscription: React.FC = () => {
   const getSubscriptionStatus = () => {
     if (!profile) return '...';
     
+    // Check for trial or free status first
+    if (profile.subscription_status === 'trial' || profile.subscription_status === 'free') {
+      return '30-Day Free Trial';
+    }
+    
     const planName = getPlanNameFromPriceId(profile.stripe_price_id);
 
     if (profile.subscription_status === 'active') {
@@ -59,12 +64,9 @@ export const Subscription: React.FC = () => {
         }
     }
     
-    switch (profile.subscription_status) {
-        case 'trial': return '30-Day Free Trial';
-        case 'cancelled': return 'Cancelled';
-        case 'free': return 'Free Plan';
-        default: return 'No Active Subscription';
-    }
+    // Handle other statuses
+    if (profile.subscription_status === 'cancelled') return 'Cancelled';
+    return 'No Active Subscription';
   };
 
   const triggerToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
@@ -136,8 +138,8 @@ export const Subscription: React.FC = () => {
   const getCapsuleLimit = () => {
     if (!profile) return 0;
     
-    // Check subscription status first
-    if (profile.subscription_status === 'trial') {
+    // Check for trial status first
+    if (profile.subscription_status === 'trial' || profile.subscription_status === 'free') {
       return 1; // Trial gets 1 capsule
     }
     
@@ -158,8 +160,8 @@ export const Subscription: React.FC = () => {
   const getStorageLimit = () => {
     if (!profile) return '0GB';
     
-    // Check subscription status first
-    if (profile.subscription_status === 'trial') {
+    // Check for trial status first  
+    if (profile.subscription_status === 'trial' || profile.subscription_status === 'free') {
       return '3GB'; // Trial gets 3GB
     }
     
