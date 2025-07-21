@@ -57,7 +57,7 @@ function App() {
 
   // This logic now correctly uses the profile from the useAuth hook
   useEffect(() => {
-    if (user && !loading) {
+    if (user && !loading && !profile) {
       checkFirstTimeLogin();
     }
   }, [user, loading, profile]);

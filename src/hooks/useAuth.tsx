@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize auth state
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     const initializeAuth = async () => {
       try {
@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await supabase.auth.signOut();
           }
           
-          if (isMounted) {
+          if (mounted) {
             setUser(null);
             setProfile(null);
             setLoading(false);
@@ -89,25 +89,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (session?.user && isMounted) {
+        if (session?.user && mounted) {
           setUser(session.user);
           
           const profileData = await fetchProfile(session.user.id);
-          if (isMounted) {
+          if (mounted) {
             setProfile(profileData);
           }
-        } else if (isMounted) {
+        } else if (mounted) {
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        if (isMounted) {
+        if (mounted) {
           setUser(null);
           setProfile(null);
         }
       } finally {
-        if (isMounted) {
+        if (mounted) {
           setLoading(false);
         }
       }
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
+      if (!mounted) return;
 
       if (event === 'SIGNED_OUT' || !session?.user) {
         setUser(null);
@@ -128,14 +128,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session.user);
         
         const profileData = await fetchProfile(session.user.id);
-        if (isMounted) {
-          setProfile(profileData);
+        if (mounted) {
         }
+        setLoading(false);
       }
     });
 
     return () => {
-      isMounted = false;
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
