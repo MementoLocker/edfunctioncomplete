@@ -106,7 +106,6 @@ function App() {
         
         <main className="flex-1">
           <Routes>
-            {/* This is the full list of your website's pages */}
             <Route path="/" element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
@@ -119,3 +118,33 @@ function App() {
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/my-capsules" element={<MyCapsules />} />
             <Route path="/client-reviews" element={<ClientReviews />} />
+            <Route path="/sponsor-dashboard" element={<SponsorDashboard />} />
+            <Route path="/music-library" element={<MusicLibrary />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/copyright" element={<Copyright />} />
+            <Route path="/security" element={<Security />} />
+          </Routes>
+        </main>
+        
+        <Footer onSignIn={handleSignIn} />
+        <CookieConsent />
+        
+        <AuthModal
+          isOpen={authModal.isOpen}
+          onClose={() => setAuthModal({ ...authModal, isOpen: false })}
+          mode={authModal.mode}
+          onModeChange={(mode) => setAuthModal({ ...authModal, mode })}
+        />
+
+        <WelcomeModal
+          isOpen={showWelcomeModal}
+          onClose={() => setShowWelcomeModal(false)}
+          onUpgradeClick={handleUpgradeClick}
+        />
+      </div>
+    </Router>
+  );
+}
+
+export default App;
