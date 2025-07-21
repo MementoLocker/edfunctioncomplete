@@ -11,11 +11,22 @@ import { Contact } from './pages/Contact';
 import { FAQ } from './pages/FAQ';
 import { CreateCapsule } from './pages/CreateCapsule';
 import { CustomSong } from './pages/CustomSong';
+import { LeaveReview } from './pages/LeaveReview';
+import { CapsuleExamples } from './pages/CapsuleExamples';
+import { Terms } from './pages/Terms';
+import { Privacy } from './pages/Privacy';
+import { Copyright } from './pages/Copyright';
+import { Security } from './pages/Security';
 import { Subscription } from './pages/Subscription';
+import { MyCapsules } from './pages/MyCapsules';
+import { ClientReviews } from './pages/ClientReviews';
+import { MusicLibrary } from './pages/MusicLibrary';
+import { SponsorDashboard } from './pages/SponsorDashboard';
+import { PaymentSuccess } from './pages/PaymentSuccess';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './lib/supabase';
 
-// A simple component to scroll to the top on page navigation
+// This component scrolls the window to the top on navigation
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -25,6 +36,7 @@ function ScrollToTop() {
 }
 
 function App() {
+  // Use our single, reliable source of truth for user data
   const { user, profile, loading, signOut } = useAuth();
   
   const [authModal, setAuthModal] = useState<{ isOpen: boolean; mode: 'signin' | 'signup' }>({
@@ -33,7 +45,7 @@ function App() {
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
-  // Check for first-time login to create a profile and show a welcome modal
+  // When a new user signs in for the first time, create their profile
   useEffect(() => {
     if (user && !profile && !loading) {
       const createProfileForNewUser = async () => {
@@ -82,3 +94,28 @@ function App() {
   }
 
   return (
+    <Router>
+      <ScrollToTop />
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header 
+          user={user}
+          profile={profile}
+          onSignIn={handleSignIn} 
+          onSignOut={handleSignOut}
+        />
+        
+        <main className="flex-1">
+          <Routes>
+            {/* This is the full list of your website's pages */}
+            <Route path="/" element={<Home onGetStarted={handleGetStarted} onSignIn={handleSignIn} onSignUp={handleSignUp} />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/create-capsule" element={<CreateCapsule />} />
+            <Route path="/custom-song" element={<CustomSong />} />
+            <Route path="/leave-review" element={<LeaveReview />} />
+            <Route path="/capsule-examples" element={<CapsuleExamples />} />
+            <Route path="/subscription" element={<Subscription />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/my-capsules" element={<MyCapsules />} />
+            <Route path="/client-reviews" element={<ClientReviews />} />
