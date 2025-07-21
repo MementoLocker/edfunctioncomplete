@@ -10,6 +10,7 @@ interface Profile {
   subscription_status: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
   trial_start_date: string | null;
   trial_end_date: string | null;
   capsules_sent: number;
@@ -40,7 +41,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Function to fetch user profile from database
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
-      console.log('Fetching fresh profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -48,43 +48,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist, create it
-          console.log('Profile not found, creating new profile for user:', userId);
-          const { data: userData } = await supabase.auth.getUser();
-          if (userData.user) {
-            const newProfile = {
-              id: userId,
-              name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'User',
-              email: userData.user.email || '',
-              subscription_status: 'trial',
-              trial_start_date: new Date().toISOString(),
-              trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-              capsules_sent: 0,
-              social_shares_completed: 0
-            };
-            
-            const { data: insertedProfile, error: insertError } = await supabase
-              .from('profiles')
-              .insert(newProfile)
-              .select()
-              .single();
-              
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-              return null;
-            }
-            
-            console.log('Profile created successfully:', insertedProfile);
-            return insertedProfile;
-          }
-        } else {
-          console.error('Error fetching profile:', error);
-        }
+        console.error('Error fetching profile:', error);
         return null;
       }
 
-      console.log('Fresh profile data:', data);
       return data;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
@@ -95,35 +62,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Function to refresh profile data
   const refreshProfile = async () => {
     if (user) {
-      console.log('refreshProfile called for user:', user.id);
       const freshProfile = await fetchProfile(user.id);
-      console.log('refreshProfile completed, setting profile:', !!freshProfile);
       setProfile(freshProfile);
     }
   };
 
   // Initialize auth state
   useEffect(() => {
-    let mounted = true;
-    console.log('Initializing auth...')
+    let isMounted = true;
 
     const initializeAuth = async () => {
       try {
-        // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('Initial session check:', { session: !!session, error })
         
         if (error) {
-          console.error('Error getting session:', error);
-          
-          // Handle invalid refresh token by clearing the session
           if (error.message?.includes('Invalid Refresh Token') || 
               error.message?.includes('refresh_token_not_found')) {
-            console.log('Invalid refresh token detected, clearing session...');
             await supabase.auth.signOut();
           }
           
-          if (mounted) {
+          if (isMounted) {
             setUser(null);
             setProfile(null);
             setLoading(false);
@@ -131,33 +89,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (session?.user && mounted) {
-          console.log('Session found, setting user:', session.user.id);
+        if (session?.user && isMounted) {
           setUser(session.user);
-          console.log('User state set, now fetching profile...');
           
-          // Fetch profile data
           const profileData = await fetchProfile(session.user.id);
-          if (mounted) {
-            console.log('Profile data fetched, setting profile:', !!profileData);
+          if (isMounted) {
             setProfile(profileData);
-            console.log('Initial auth setup complete - user and profile set');
-            console.log('Final auth state - user:', !!session.user, 'profile:', !!profileData);
           }
-        } else if (mounted) {
-          console.log('No session found')
+        } else if (isMounted) {
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        if (mounted) {
+        if (isMounted) {
           setUser(null);
           setProfile(null);
         }
       } finally {
-        if (mounted) {
-          console.log('Auth initialization complete')
+        if (isMounted) {
           setLoading(false);
         }
       }
@@ -165,39 +115,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     initializeAuth();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
-      
-      if (!mounted) return;
+      if (!isMounted) return;
 
       if (event === 'SIGNED_OUT' || !session?.user) {
-        console.log('User signed out, clearing state');
         setUser(null);
         setProfile(null);
-        setLoading(false);
         return;
       }
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        console.log('User signed in/token refreshed:', session.user.id);
         setUser(session.user);
         
-        // Fetch fresh profile data
         const profileData = await fetchProfile(session.user.id);
-        if (mounted) {
+        if (isMounted) {
           setProfile(profileData);
-          console.log('Profile set, auth process complete');
-          console.log('Auth state change complete - user:', !!session.user, 'profile:', !!profileData);
-          setLoading(false);
         }
       }
-
     });
 
-    // Cleanup function
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -205,19 +143,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Sign out function
   const signOut = async () => {
     try {
-      console.log('Signing out user...');
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('Sign out error:', error);
         throw error;
       }
 
-      // Clear state immediately
       setUser(null);
       setProfile(null);
-      
-      console.log('Sign out successful');
     } catch (error) {
       console.error('Error in signOut:', error);
       throw error;
