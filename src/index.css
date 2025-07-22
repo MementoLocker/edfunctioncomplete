@@ -404,6 +404,51 @@
       font-size: 0.75rem;
       text-align: center;
     }
+    
+    /* Fix create capsule mobile navigation */
+    .create-capsule-nav {
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      white-space: nowrap;
+    }
+    
+    .create-capsule-nav::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .create-capsule-nav .nav-button {
+      flex-shrink: 0;
+      min-width: fit-content;
+      white-space: nowrap;
+      font-size: 0.75rem;
+      padding: 0.5rem 0.75rem;
+    }
+  }
+
+  /* Font preview styles */
+  .font-preview-playfair {
+    font-family: 'Playfair Display', serif !important;
+  }
+  
+  .font-preview-inter {
+    font-family: 'Inter', sans-serif !important;
+  }
+  
+  .font-preview-lora {
+    font-family: 'Lora', serif !important;
+  }
+  
+  .font-preview-montserrat {
+    font-family: 'Montserrat', sans-serif !important;
+  }
+  
+  .font-preview-roboto {
+    font-family: 'Roboto', sans-serif !important;
+  }
+  
+  .font-preview-opensans {
+    font-family: 'Open Sans', sans-serif !important;
   }
 
   /* Smooth Scrolling */
