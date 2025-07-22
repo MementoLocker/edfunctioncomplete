@@ -1173,3 +1173,10 @@
     font-family: 'Inter', sans-serif;
   }
 }
+/* Fix for mobile tab overflow */
+@media (max-width: 640px) {
+  .flex.space-x-2.overflow-hidden {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+}
