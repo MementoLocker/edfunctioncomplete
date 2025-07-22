@@ -1172,11 +1172,19 @@
     @apply flex items-center justify-center space-x-3 px-6 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-none transition-all duration-300 text-gray-700 hover:text-gray-900;
     font-family: 'Inter', sans-serif;
   }
-}
-/* Fix for mobile tab overflow */
-@media (max-width: 640px) {
-  .flex.space-x-2.overflow-hidden {
+/* Fix for mobile tab overflow - v2 */
+@media (max-width: 767px) {
+  /* Find the specific container within the create-capsule page */
+  /* This targets the div that holds the tabs */
+  .relative.z-10 > div > .flex.space-x-2 {
     overflow-x: auto;
     flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch; /* Improves scrolling on iOS */
+    scrollbar-width: none; /* Hides scrollbar on Firefox */
+  }
+  
+  /* Hides scrollbar on Chrome/Safari */
+  .relative.z-10 > div > .flex.space-x-2::-webkit-scrollbar {
+    display: none;
   }
 }
