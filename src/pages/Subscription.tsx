@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ToastNotification } from '../components/ToastNotification';
-import { Calendar, Users, Edit, Save, X, Package, User as UserIcon, Plus, Trash2, CreditCard, Shield, Star, Music, Infinity, MessageCircle, CheckCircle } from 'lucide-react';
+import { Calendar, Users, Edit, Save, X, Package, User as UserIcon, Plus, Trash2, CreditCard, Shield, Star, Music, Infinity, MessageCircle, CheckCircle, Upload, Camera } from 'lucide-react';
 
 interface Capsule {
   id: string;
@@ -32,6 +32,7 @@ export const Subscription: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const getPlanNameFromPriceId = (priceId: string | null) => {
     if (!priceId) return null;
@@ -132,6 +133,59 @@ export const Subscription: React.FC = () => {
       triggerToast('Failed to access billing portal. Please contact support.', 'error');
     } finally {
       setCancellingSubscription(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      triggerToast('Please select an image file', 'error');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      triggerToast('Image must be smaller than 5MB', 'error');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      triggerToast('Profile picture updated successfully!', 'success');
+      
+      // Refresh the page to show new avatar
+      window.location.reload();
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      triggerToast('Failed to upload profile picture', 'error');
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -300,6 +354,54 @@ export const Subscription: React.FC = () => {
           {/* Account Information */}
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Account Information</h2>
+            
+            {/* Profile Picture Section */}
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-700 mb-4">Profile Picture</h3>
+              <div className="flex items-center space-x-6">
+                <div className="relative">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="Profile"
+                      className="w-20 h-20 rounded-full object-cover border-4 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-200">
+                      <UserIcon className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                    id="avatar-upload"
+                    disabled={uploadingAvatar}
+                  />
+                  <label
+                    htmlFor="avatar-upload"
+                    className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
+                      uploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    {uploadingAvatar ? 'Uploading...' : 'Change Picture'}
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">
+                    JPG, PNG or GIF. Max size 5MB.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
