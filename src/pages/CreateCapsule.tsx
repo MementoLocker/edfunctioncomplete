@@ -4,8 +4,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ToastNotification } from '../components/ToastNotification';
-import { SlideshowPreview } from '../components/SlideshowPreview';
-import { FileArrangementModal } from '../components/FileArrangementModal';
 import { 
   FileText, 
   Upload, 
@@ -23,12 +21,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Play,
-  Trash2,
-  Clock,
-  User,
-  Music,
-  Info,
-  ArrowUpDown
+  Trash2
 } from 'lucide-react';
 
 interface MediaFile {
@@ -57,9 +50,7 @@ export const CreateCapsule: React.FC = () => {
   // Form state
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [senderName, setSenderName] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
-  const [deliveryTime, setDeliveryTime] = useState('12:00');
   const [recipients, setRecipients] = useState<Recipient[]>([{ name: '', email: '' }]);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   
@@ -69,68 +60,18 @@ export const CreateCapsule: React.FC = () => {
   const [titleSize, setTitleSize] = useState('text-4xl');
   const [messageSize, setMessageSize] = useState('text-lg');
   const [backgroundColor, setBackgroundColor] = useState('#FFFFFF');
-  const [backgroundType, setBackgroundType] = useState<'solid' | 'gradient'>('solid');
-  const [gradientDirection, setGradientDirection] = useState('to-b');
-  const [secondaryColor, setSecondaryColor] = useState('#F3F4F6');
-  const [transitionEffect, setTransitionEffect] = useState('fade');
-  const [transitionSpeed, setTransitionSpeed] = useState('medium');
-  const [slideDuration, setSlideDuration] = useState(5000);
-  
-  // Music state
-  const [musicOption, setMusicOption] = useState<'none' | 'library' | 'upload'>('none');
-  const [selectedBackgroundMusic, setSelectedBackgroundMusic] = useState<any>(null);
-  const [uploadedMusic, setUploadedMusic] = useState<File | null>(null);
   
   // UI state
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
-  const [showPreview, setShowPreview] = useState(false);
-  const [showFileArrangement, setShowFileArrangement] = useState(false);
 
   const tabs = [
     { id: 'details', label: 'Details', icon: FileText },
     { id: 'media', label: 'Media', icon: Upload },
     { id: 'customize', label: 'Style', icon: Palette },
     { id: 'recipients', label: 'Send To', icon: Users }
-  ];
-
-  const fontOptions = [
-    { value: 'Playfair Display', label: 'Playfair Display (Elegant)' },
-    { value: 'Inter', label: 'Inter (Modern)' },
-    { value: 'serif', label: 'Times (Classic)' },
-    { value: 'Georgia', label: 'Georgia (Traditional)' },
-    { value: 'Lora', label: 'Lora (Readable)' },
-    { value: 'Merriweather', label: 'Merriweather (Friendly)' },
-    { value: 'Open Sans', label: 'Open Sans (Clean)' },
-    { value: 'Roboto', label: 'Roboto (Technical)' }
-  ];
-
-  const transitionEffects = [
-    { value: 'fade', label: 'Fade' },
-    { value: 'slide', label: 'Slide Left' },
-    { value: 'slideUp', label: 'Slide Up' },
-    { value: 'slideDown', label: 'Slide Down' },
-    { value: 'zoom', label: 'Zoom In' },
-    { value: 'zoomOut', label: 'Zoom Out' },
-    { value: 'flipHorizontal', label: 'Flip Horizontal' },
-    { value: 'flipVertical', label: 'Flip Vertical' },
-    { value: 'rotate', label: 'Rotate' },
-    { value: 'spiral', label: 'Spiral' },
-    { value: 'blur', label: 'Blur' },
-    { value: 'bounce', label: 'Bounce' },
-    { value: 'elastic', label: 'Elastic' },
-    { value: 'curtain', label: 'Curtain' },
-    { value: 'wave', label: 'Wave' }
-  ];
-
-  const gradientDirections = [
-    { value: 'to-b', label: 'Top to Bottom' },
-    { value: 'to-r', label: 'Left to Right' },
-    { value: 'to-br', label: 'Top-Left to Bottom-Right' },
-    { value: 'to-bl', label: 'Top-Right to Bottom-Left' },
-    { value: 'radial', label: 'Radial (Center Out)' }
   ];
 
   const triggerToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
@@ -145,15 +86,10 @@ export const CreateCapsule: React.FC = () => {
       return;
     }
 
-    // Set default sender name from user profile
-    if (profile?.name) {
-      setSenderName(profile.name);
-    }
-
     if (editId) {
       loadCapsuleForEdit(editId);
     }
-  }, [user, profile, editId, navigate]);
+  }, [user, editId, navigate]);
 
   const loadCapsuleForEdit = async (capsuleId: string) => {
     try {
@@ -170,24 +106,8 @@ export const CreateCapsule: React.FC = () => {
         setTitle(data.title || '');
         setMessage(data.message || '');
         setDeliveryDate(data.delivery_date ? new Date(data.delivery_date).toISOString().split('T')[0] : '');
-        setDeliveryTime(data.delivery_date ? new Date(data.delivery_date).toTimeString().slice(0, 5) : '12:00');
         setRecipients(data.recipients || [{ name: '', email: '' }]);
-        
-        // Load customization settings
-        if (data.customization) {
-          const custom = data.customization;
-          setTitleFont(custom.titleFont || 'Playfair Display');
-          setMessageFont(custom.messageFont || 'Inter');
-          setTitleSize(custom.titleSize || 'text-4xl');
-          setMessageSize(custom.messageSize || 'text-lg');
-          setBackgroundColor(custom.backgroundColor || '#FFFFFF');
-          setBackgroundType(custom.backgroundType || 'solid');
-          setGradientDirection(custom.gradientDirection || 'to-b');
-          setSecondaryColor(custom.secondaryColor || '#F3F4F6');
-          setTransitionEffect(custom.transitionEffect || 'fade');
-          setTransitionSpeed(custom.transitionSpeed || 'medium');
-          setSlideDuration(custom.slideDuration || 5000);
-        }
+        // Note: Files would need to be handled separately for editing
       }
     } catch (error) {
       console.error('Error loading capsule:', error);
@@ -215,14 +135,6 @@ export const CreateCapsule: React.FC = () => {
     });
   };
 
-  const handleMusicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('audio/')) {
-      setUploadedMusic(file);
-      setMusicOption('upload');
-    }
-  };
-
   const removeFile = (fileId: string) => {
     setMediaFiles(prev => {
       const fileToRemove = prev.find(f => f.id === fileId);
@@ -247,14 +159,6 @@ export const CreateCapsule: React.FC = () => {
     ));
   };
 
-  const handlePreview = () => {
-    if (!title.trim()) {
-      triggerToast('Please enter a title to preview your capsule', 'warning');
-      return;
-    }
-    setShowPreview(true);
-  };
-
   const saveCapsule = async (status: 'draft' | 'sealed') => {
     if (!title.trim()) {
       triggerToast('Please enter a title for your capsule', 'warning');
@@ -273,13 +177,11 @@ export const CreateCapsule: React.FC = () => {
 
     setLoading(true);
     try {
-      const deliveryDateTime = new Date(`${deliveryDate}T${deliveryTime}`).toISOString();
-      
       const capsuleData = {
         user_id: user?.id,
         title: title.trim(),
         message: message.trim(),
-        delivery_date: deliveryDateTime,
+        delivery_date: new Date(deliveryDate).toISOString(),
         recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
         files: [], // Files would be uploaded to storage separately
         customization: {
@@ -287,15 +189,7 @@ export const CreateCapsule: React.FC = () => {
           messageFont,
           titleSize,
           messageSize,
-          backgroundColor,
-          backgroundType,
-          gradientDirection,
-          secondaryColor,
-          transitionEffect,
-          transitionSpeed,
-          slideDuration,
-          musicOption,
-          senderName
+          backgroundColor
         },
         status,
         updated_at: new Date().toISOString()
@@ -379,10 +273,10 @@ export const CreateCapsule: React.FC = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-8"
         >
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
             Create Your Time Capsule
           </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto text-sm md:text-base">
+          <p className="text-gray-600 max-w-2xl mx-auto">
             Preserve your precious memories and schedule them to be delivered at the perfect moment.
           </p>
         </motion.div>
@@ -394,7 +288,7 @@ export const CreateCapsule: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-shrink-0 flex items-center space-x-1 md:space-x-2 px-2 md:px-4 py-3 text-xs md:text-sm font-medium border-b-2 transition-colors min-w-[70px] md:min-w-auto ${
+                className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-amber-500 text-amber-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -404,7 +298,7 @@ export const CreateCapsule: React.FC = () => {
                   color: activeTab === tab.id ? '#C0A172' : undefined
                 }}
               >
-                <tab.icon className="w-3 h-3 md:w-4 md:h-4" />
+                <tab.icon className="w-4 h-4" />
                 <span className="whitespace-nowrap">{tab.label}</span>
               </button>
             ))}
@@ -412,7 +306,7 @@ export const CreateCapsule: React.FC = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <AnimatePresence mode="wait">
             {/* Details Tab */}
             {activeTab === 'details' && (
@@ -423,7 +317,7 @@ export const CreateCapsule: React.FC = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Capsule Details</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Capsule Details</h2>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -433,29 +327,11 @@ export const CreateCapsule: React.FC = () => {
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all"
                     style={{ focusRingColor: '#C0A172' }}
                     placeholder="Give your time capsule a meaningful title..."
                     required
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    From (Sender Name) *
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-gray-900"
-                      style={{ focusRingColor: '#C0A172' }}
-                      placeholder="Your name as it will appear to recipients"
-                      required
-                    />
-                  </div>
                 </div>
 
                 <div>
@@ -466,46 +342,25 @@ export const CreateCapsule: React.FC = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     rows={6}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all resize-none text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all resize-none"
                     style={{ focusRingColor: '#C0A172' }}
                     placeholder="Write a heartfelt message to your recipients..."
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Date *
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="date"
-                        value={deliveryDate}
-                        onChange={(e) => setDeliveryDate(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-gray-900"
-                        style={{ focusRingColor: '#C0A172' }}
-                        min={new Date().toISOString().split('T')[0]}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Time
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="time"
-                        value={deliveryTime}
-                        onChange={(e) => setDeliveryTime(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-gray-900"
-                        style={{ focusRingColor: '#C0A172' }}
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all"
+                    style={{ focusRingColor: '#C0A172' }}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                  />
                 </div>
               </motion.div>
             )}
@@ -519,26 +374,15 @@ export const CreateCapsule: React.FC = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg md:text-xl font-bold text-gray-800">Add Media</h2>
-                  {mediaFiles.length > 1 && (
-                    <button
-                      onClick={() => setShowFileArrangement(true)}
-                      className="btn-outline text-xs md:text-sm py-2 px-3 flex items-center"
-                    >
-                      <ArrowUpDown className="w-4 h-4 mr-1" />
-                      Arrange
-                    </button>
-                  )}
-                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Add Media</h2>
                 
                 {/* Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 md:p-8 text-center hover:border-gray-400 transition-colors">
-                  <Upload className="w-8 md:w-12 h-8 md:h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-base md:text-lg font-medium text-gray-700 mb-2">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">
                     Upload Photos, Videos & Audio
                   </h3>
-                  <p className="text-gray-500 mb-4 text-sm md:text-base">
+                  <p className="text-gray-500 mb-4">
                     Drag and drop files here, or click to browse
                   </p>
                   <input
@@ -551,79 +395,16 @@ export const CreateCapsule: React.FC = () => {
                   />
                   <label
                     htmlFor="file-upload"
-                    className="btn-primary cursor-pointer inline-block text-sm md:text-base"
+                    className="btn-primary cursor-pointer inline-block"
                   >
                     Choose Files
                   </label>
                 </div>
 
-                {/* Music Options */}
-                <div className="space-y-4">
-                  <h3 className="text-base md:text-lg font-medium text-gray-800">Background Music</h3>
-                  
-                  <div className="grid grid-cols-1 gap-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="musicOption"
-                        value="none"
-                        checked={musicOption === 'none'}
-                        onChange={(e) => setMusicOption(e.target.value as any)}
-                        className="mr-3"
-                      />
-                      <span className="text-gray-700 text-sm md:text-base">No background music</span>
-                    </label>
-                    
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="musicOption"
-                        value="library"
-                        checked={musicOption === 'library'}
-                        onChange={(e) => setMusicOption(e.target.value as any)}
-                        className="mr-3"
-                      />
-                      <Music className="w-4 h-4 mr-2 text-purple-500" />
-                      <span className="text-gray-700 text-sm md:text-base">Use our music library (Coming Soon)</span>
-                    </label>
-                    
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="musicOption"
-                        value="upload"
-                        checked={musicOption === 'upload'}
-                        onChange={(e) => setMusicOption(e.target.value as any)}
-                        className="mr-3"
-                      />
-                      <Upload className="w-4 h-4 mr-2 text-blue-500" />
-                      <span className="text-gray-700 text-sm md:text-base">Upload your own music</span>
-                    </label>
-                  </div>
-
-                  {musicOption === 'upload' && (
-                    <div className="mt-4">
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        onChange={handleMusicUpload}
-                        className="hidden"
-                        id="music-upload"
-                      />
-                      <label
-                        htmlFor="music-upload"
-                        className="btn-outline cursor-pointer inline-block text-sm"
-                      >
-                        {uploadedMusic ? `Selected: ${uploadedMusic.name}` : 'Choose Music File'}
-                      </label>
-                    </div>
-                  )}
-                </div>
-
                 {/* Uploaded Files */}
                 {mediaFiles.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-base md:text-lg font-medium text-gray-800">
+                    <h3 className="text-lg font-medium text-gray-800">
                       Uploaded Files ({mediaFiles.length})
                     </h3>
                     <div className="grid grid-cols-1 gap-4">
@@ -673,20 +454,11 @@ export const CreateCapsule: React.FC = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg md:text-xl font-bold text-gray-800">Customize Appearance</h2>
-                  <button
-                    onClick={handlePreview}
-                    className="btn-outline text-xs md:text-sm py-2 px-3 flex items-center"
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    Preview
-                  </button>
-                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Customize Appearance</h2>
                 
                 {/* Typography */}
                 <div className="space-y-4">
-                  <h3 className="text-base md:text-lg font-medium text-gray-800">Typography</h3>
+                  <h3 className="text-lg font-medium text-gray-800">Typography</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -696,12 +468,12 @@ export const CreateCapsule: React.FC = () => {
                       <select
                         value={titleFont}
                         onChange={(e) => setTitleFont(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
                         style={{ focusRingColor: '#C0A172' }}
                       >
-                        {fontOptions.map(font => (
-                          <option key={font.value} value={font.value}>{font.label}</option>
-                        ))}
+                        <option value="Playfair Display">Playfair Display (Elegant)</option>
+                        <option value="Inter">Inter (Modern)</option>
+                        <option value="serif">Times (Classic)</option>
                       </select>
                     </div>
 
@@ -712,12 +484,12 @@ export const CreateCapsule: React.FC = () => {
                       <select
                         value={messageFont}
                         onChange={(e) => setMessageFont(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
                         style={{ focusRingColor: '#C0A172' }}
                       >
-                        {fontOptions.map(font => (
-                          <option key={font.value} value={font.value}>{font.label}</option>
-                        ))}
+                        <option value="Inter">Inter (Modern)</option>
+                        <option value="Playfair Display">Playfair Display (Elegant)</option>
+                        <option value="serif">Times (Classic)</option>
                       </select>
                     </div>
                   </div>
@@ -730,7 +502,7 @@ export const CreateCapsule: React.FC = () => {
                       <select
                         value={titleSize}
                         onChange={(e) => setTitleSize(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
                         style={{ focusRingColor: '#C0A172' }}
                       >
                         <option value="text-2xl">Small</option>
@@ -747,7 +519,7 @@ export const CreateCapsule: React.FC = () => {
                       <select
                         value={messageSize}
                         onChange={(e) => setMessageSize(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
                         style={{ focusRingColor: '#C0A172' }}
                       >
                         <option value="text-sm">Small</option>
@@ -761,156 +533,27 @@ export const CreateCapsule: React.FC = () => {
 
                 {/* Background */}
                 <div className="space-y-4">
-                  <h3 className="text-base md:text-lg font-medium text-gray-800">Background</h3>
+                  <h3 className="text-lg font-medium text-gray-800">Background</h3>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="backgroundType"
-                        value="solid"
-                        checked={backgroundType === 'solid'}
-                        onChange={(e) => setBackgroundType(e.target.value as any)}
-                        className="mr-3"
-                      />
-                      <span className="text-gray-700 text-sm">Solid Color</span>
-                    </label>
-                    
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="backgroundType"
-                        value="gradient"
-                        checked={backgroundType === 'gradient'}
-                        onChange={(e) => setBackgroundType(e.target.value as any)}
-                        className="mr-3"
-                      />
-                      <span className="text-gray-700 text-sm">Color Gradient</span>
-                    </label>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Primary Color
-                      </label>
-                      <div className="flex items-center space-x-4">
-                        <input
-                          type="color"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-12 h-12 border border-gray-300 rounded cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
-                          style={{ focusRingColor: '#C0A172' }}
-                          placeholder="#FFFFFF"
-                        />
-                      </div>
-                    </div>
-
-                    {backgroundType === 'gradient' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Secondary Color
-                        </label>
-                        <div className="flex items-center space-x-4">
-                          <input
-                            type="color"
-                            value={secondaryColor}
-                            onChange={(e) => setSecondaryColor(e.target.value)}
-                            className="w-12 h-12 border border-gray-300 rounded cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            value={secondaryColor}
-                            onChange={(e) => setSecondaryColor(e.target.value)}
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
-                            style={{ focusRingColor: '#C0A172' }}
-                            placeholder="#F3F4F6"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {backgroundType === 'gradient' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Gradient Direction
-                      </label>
-                      <select
-                        value={gradientDirection}
-                        onChange={(e) => setGradientDirection(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
-                        style={{ focusRingColor: '#C0A172' }}
-                      >
-                        {gradientDirections.map(direction => (
-                          <option key={direction.value} value={direction.value}>{direction.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                {/* Slideshow Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-base md:text-lg font-medium text-gray-800">Slideshow Settings</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Transition Effect
-                      </label>
-                      <select
-                        value={transitionEffect}
-                        onChange={(e) => setTransitionEffect(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
-                        style={{ focusRingColor: '#C0A172' }}
-                      >
-                        {transitionEffects.map(effect => (
-                          <option key={effect.value} value={effect.value}>{effect.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Transition Speed
-                      </label>
-                      <select
-                        value={transitionSpeed}
-                        onChange={(e) => setTransitionSpeed(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
-                        style={{ focusRingColor: '#C0A172' }}
-                      >
-                        <option value="slow">Slow</option>
-                        <option value="medium">Medium</option>
-                        <option value="fast">Fast</option>
-                      </select>
-                    </div>
-                  </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Slide Duration (seconds)
+                      Background Color
                     </label>
-                    <input
-                      type="range"
-                      min="3"
-                      max="15"
-                      step="1"
-                      value={slideDuration / 1000}
-                      onChange={(e) => setSlideDuration(parseInt(e.target.value) * 1000)}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                      <span>3s</span>
-                      <span className="font-medium">{slideDuration / 1000}s</span>
-                      <span>15s</span>
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="w-12 h-12 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                        style={{ focusRingColor: '#C0A172' }}
+                        placeholder="#FFFFFF"
+                      />
                     </div>
                   </div>
                 </div>
@@ -926,7 +569,7 @@ export const CreateCapsule: React.FC = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Recipients</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Recipients</h2>
                 
                 <div className="space-y-4">
                   {recipients.map((recipient, index) => (
@@ -936,7 +579,7 @@ export const CreateCapsule: React.FC = () => {
                           type="text"
                           value={recipient.name}
                           onChange={(e) => updateRecipient(index, 'name', e.target.value)}
-                          className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
+                          className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
                           style={{ focusRingColor: '#C0A172' }}
                           placeholder="Recipient Name"
                         />
@@ -944,7 +587,7 @@ export const CreateCapsule: React.FC = () => {
                           type="email"
                           value={recipient.email}
                           onChange={(e) => updateRecipient(index, 'email', e.target.value)}
-                          className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-gray-900"
+                          className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
                           style={{ focusRingColor: '#C0A172' }}
                           placeholder="Recipient Email"
                         />
@@ -975,31 +618,18 @@ export const CreateCapsule: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mt-8">
-          <div className="flex-1 relative group">
-            <button
-              onClick={() => saveCapsule('draft')}
-              disabled={loading}
-              className="w-full btn-outline py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-              ) : (
-                <Save className="w-5 h-5 mr-2" />
-              )}
-              Save as Draft
-              <Info className="w-4 h-4 ml-2 text-gray-400 group-hover:text-gray-600" />
-            </button>
-            
-            {/* Tooltip for Save as Draft */}
-            <div className="absolute bottom-full left-0 right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg">
-                <div className="text-center">
-                  This saves the details and text of your capsule, but not your uploaded photos or videos.
-                </div>
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={() => saveCapsule('draft')}
+            disabled={loading}
+            className="flex-1 btn-outline py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+            ) : (
+              <Save className="w-5 h-5 mr-2" />
+            )}
+            Save as Draft
+          </button>
           
           <button
             onClick={() => saveCapsule('sealed')}
@@ -1026,37 +656,6 @@ export const CreateCapsule: React.FC = () => {
           </ul>
         </div>
       </div>
-
-      {/* Slideshow Preview Modal */}
-      <SlideshowPreview
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        title={title}
-        message={message}
-        senderName={senderName}
-        titleFont={titleFont}
-        messageFont={messageFont}
-        titleSize={titleSize}
-        messageSize={messageSize}
-        backgroundColor={backgroundColor}
-        backgroundType={backgroundType}
-        gradientDirection={gradientDirection}
-        secondaryColor={secondaryColor}
-        transitionEffect={transitionEffect}
-        transitionSpeed={transitionSpeed}
-        mediaFiles={mediaFiles}
-        deliveryDate={deliveryDate}
-        slideDuration={slideDuration}
-        backgroundMusic={selectedBackgroundMusic}
-      />
-
-      {/* File Arrangement Modal */}
-      <FileArrangementModal
-        isOpen={showFileArrangement}
-        onClose={() => setShowFileArrangement(false)}
-        mediaFiles={mediaFiles}
-        onSave={(reorderedFiles) => setMediaFiles(reorderedFiles)}
-      />
 
       <ToastNotification
         message={toastMessage}

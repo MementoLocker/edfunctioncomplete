@@ -372,40 +372,9 @@
       transform: none;
     }
     
-    /* Force white background for Create Capsule page on mobile */
-    .min-h-screen {
+    /* Ensure mobile pages have white background */
+    body, .min-h-screen {
       background-color: white !important;
-    }
-
-    /* Ensure all text is readable on mobile */
-    body, .min-h-screen, .bg-white {
-      color: #2D2D2D !important;
-    }
-
-    /* Force white background for containers on mobile */
-    .bg-gray-50 {
-      background-color: white !important;
-    }
-
-    /* Ensure text inputs are readable on mobile */
-    input, textarea, select {
-      background-color: white !important;
-      color: #2D2D2D !important;
-    }
-
-    /* Mobile tab navigation for Create Capsule */
-    .flex.overflow-x-auto.scrollbar-hide {
-      padding: 0 0.5rem;
-    }
-    
-    .flex.overflow-x-auto.scrollbar-hide button {
-      font-size: 0.75rem;
-      padding: 0.75rem 0.5rem;
-      min-width: 65px;
-      max-width: 85px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
   }
 
