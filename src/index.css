@@ -11,7 +11,7 @@
   html {
     scroll-behavior: smooth;
     /* Force light theme on all devices */
-    color-scheme: light !important;
+    color-scheme: light;
   }
   
   body {
@@ -20,15 +20,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Force light background and text colors */
-    background-color: #F8F8F8 !important;
-    color: #2D2D2D !important;
+    background-color: #F8F8F8;
+    color: #2D2D2D;
     /* Override any system dark mode preferences */
-    color-scheme: light !important;
+    color-scheme: light;
   }
   
   /* Force light theme for all elements */
-  * {
-    color-scheme: light !important;
+  *, *::before, *::after {
+    color-scheme: light;
   }
   
   /* Override any dark mode media queries */
@@ -36,15 +36,11 @@
     html, body {
       background-color: #F8F8F8 !important;
       color: #2D2D2D !important;
-      color-scheme: light !important; /* Ensure light scheme is forced */
+      color-scheme: light !important;
     }
     
     * {
       color-scheme: light !important;
-    }
-    /* Explicitly override common dark mode classes if they exist */
-    .bg-gray-900 { background-color: #F8F8F8 !important; }
-    .text-white { color: #2D2D2D !important; }
     }
   }
   
@@ -52,7 +48,7 @@
     font-family: 'Playfair Display', serif;
     line-height: 1.3;
     font-weight: 600;
-    color: #2D2D2D !important;
+    color: #2D2D2D;
   }
 }
 
@@ -381,11 +377,11 @@
   @media (max-width: 640px) {
     /* Force light theme on mobile */
     html, body {
-      background-color: #F8F8F8 !important; /* Force light background */
-      color: #2D2D2D !important; /* Force dark text */
-      color-scheme: light !important; /* Force light scheme */
+      background-color: #F8F8F8 !important;
+      color: #2D2D2D !important;
+      color-scheme: light !important;
     }
-
+    
     /* Force light backgrounds for all containers */
     .bg-white {
       background-color: white !important;
@@ -398,14 +394,16 @@
     .bg-gray-100 {
       background-color: #F3F4F6 !important;
     }
-
+    
     /* Force dark text colors */
     .text-gray-800 {
       color: #1F2937 !important;
     }
+    
     .text-gray-700 {
       color: #374151 !important;
     }
+    
     .text-gray-600 {
       color: #4B5563 !important;
     }
@@ -449,11 +447,11 @@
       overflow-x: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
-      display: flex;
-      flex-wrap: nowrap; /* Prevent wrapping */
-      gap: 0.75rem; /* Increased gap for better spacing */
-      padding: 0.5rem 1rem;
-      min-height: 3rem;
+     display: flex;
+     flex-wrap: nowrap;
+     gap: 0.5rem;
+     padding: 0.5rem 1rem;
+     min-height: 3rem;
       background-color: #F9FAFB !important;
       border-bottom: 1px solid #E5E7EB;
       width: 100%;
@@ -467,23 +465,23 @@
     .mobile-tab-nav .nav-item {
       flex-shrink: 0;
       min-width: fit-content;
-      padding: 0.75rem 1rem;
-      font-size: 0.875rem;
+     padding: 0.75rem 1rem;
+     font-size: 0.875rem;
       text-align: center;
-      white-space: nowrap;
-      border-radius: 0.5rem;
+     white-space: nowrap;
+     border-radius: 0.5rem;
       background: white !important;
       border: 1px solid #e5e7eb;
       transition: all 0.2s ease;
       color: #374151 !important;
     }
-
-    .mobile-tab-nav .nav-item.active {
-      background: #C0A172 !important;
-      color: white !important;
-      border-color: #C0A172;
-    }
-
+   
+   .mobile-tab-nav .nav-item.active {
+     background: #C0A172 !important;
+     color: white !important;
+     border-color: #C0A172;
+   }
+    
     /* Fix create capsule mobile navigation */
     .create-capsule-nav {
       overflow-x: auto;
@@ -493,18 +491,18 @@
       flex-wrap: nowrap;
       gap: 0.5rem;
       padding: 0 1rem;
-      min-height: 3.5rem;
-      align-items: center;
-      background: #f9fafb !important; /* Force light background */
-      border-bottom: 1px solid #e5e7eb;
-      width: 100%;
-      box-sizing: border-box;
+     min-height: 3.5rem;
+     align-items: center;
+     background: #f9fafb !important;
+     border-bottom: 1px solid #e5e7eb;
+     width: 100%;
+     box-sizing: border-box;
     }
-
+    
     .create-capsule-nav::-webkit-scrollbar {
       display: none;
     }
-
+    
     .create-capsule-nav .nav-button {
       flex-shrink: 0;
       min-width: fit-content;
@@ -513,22 +511,22 @@
       padding: 0.75rem 1rem;
       border-radius: 0.5rem;
       text-align: center;
-      background: white !important; /* Force light background */
-      border: 1px solid #d1d5db;
-      color: #6b7280 !important; /* Force dark text */
-      transition: all 0.2s ease;
-      font-weight: 500;
-    }
-
-    .create-capsule-nav .nav-button.active {
-      background: #C0A172 !important;
-      color: white !important;
-      border-color: #C0A172;
-    }
-
-    .create-capsule-nav .nav-button:hover {
-      background: #f3f4f6 !important;
-      border-color: #9ca3af;
+     background: white !important;
+     border: 1px solid #d1d5db;
+     color: #6b7280 !important;
+     transition: all 0.2s ease;
+     font-weight: 500;
+   }
+   
+   .create-capsule-nav .nav-button.active {
+     background: #C0A172 !important;
+     color: white !important;
+     border-color: #C0A172;
+   }
+   
+   .create-capsule-nav .nav-button:hover {
+     background: #f3f4f6 !important;
+     border-color: #9ca3af;
     }
 
     /* Fix mobile customize section layout overlapping */
@@ -559,10 +557,10 @@
       width: 100%;
       padding: 0.75rem;
       font-size: 0.875rem;
-      margin-bottom: 0.5rem; /* Ensure spacing */
-      border: 1px solid #d1d5db;
-      border-radius: 0.5rem;
-      background: white !important; /* Force light background */
+      margin-bottom: 0.5rem;
+     border: 1px solid #d1d5db;
+     border-radius: 0.5rem;
+     background: white;
     }
 
     .customize-label {
@@ -570,7 +568,7 @@
       margin-bottom: 0.5rem;
       font-size: 0.875rem;
       font-weight: 500;
-      color: #374151 !important; /* Force dark text */
+     color: #374151;
     }
 
     /* Ensure audio upload section doesn't overlap */
@@ -580,8 +578,8 @@
       padding: 1rem;
       border: 1px solid #e5e7eb;
       border-radius: 0.5rem;
-      background: #f9fafb !important; /* Force light background */
-      width: 100%;
+      background: #f9fafb;
+     width: 100%;
      box-sizing: border-box;
     }
 
@@ -591,7 +589,7 @@
       flex-direction: column;
       gap: 1rem;
       margin-top: 1rem;
-      width: 100%;
+     width: 100%;
     }
 
     .transition-row {
@@ -605,90 +603,91 @@
     .form-container {
       overflow-x: hidden;
       padding: 0 0.5rem;
-      width: 100%;
-      box-sizing: border-box;
+     width: 100%;
+     box-sizing: border-box;
     }
 
     .form-section {
       margin-bottom: 2rem;
       padding-bottom: 1rem;
       border-bottom: 1px solid #e5e7eb;
-      width: 100%;
-      box-sizing: border-box;
+     width: 100%;
+     box-sizing: border-box;
     }
 
     .form-section:last-child {
       border-bottom: none;
     }
-    /* Create Capsule Mobile Layout Fixes */
-    .create-capsule-container {
-      padding: 0.5rem;
-      max-width: 100vw;
-      overflow-x: hidden; /* Prevent horizontal overflow */
+   
+   /* Create Capsule Mobile Layout Fixes */
+   .create-capsule-container {
+     padding: 0.5rem;
+     max-width: 100vw;
+     overflow-x: hidden;
       background-color: #F8F8F8 !important;
-    }
-
-    .create-capsule-content {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: hidden; /* Prevent horizontal overflow */
-      box-sizing: border-box;
+   }
+   
+   .create-capsule-content {
+     width: 100%;
+     max-width: 100%;
+     overflow-x: hidden;
+     box-sizing: border-box;
       background-color: #F8F8F8 !important;
-    }
-
-    .create-capsule-form {
-      width: 100%;
-      max-width: 100%;
-      padding: 1rem;
-      box-sizing: border-box;
+   }
+   
+   .create-capsule-form {
+     width: 100%;
+     max-width: 100%;
+     padding: 1rem;
+     box-sizing: border-box;
       background-color: #F8F8F8 !important;
-    }
-
-    .create-capsule-section {
-      margin-bottom: 2rem;
-      padding: 1rem;
-      background: white !important; /* Force light background */
-      border-radius: 0.5rem;
-      border: 1px solid #e5e7eb;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    .create-capsule-field {
-      margin-bottom: 1.5rem;
-      width: 100%;
-    }
-
-    .create-capsule-input,
-    .create-capsule-textarea,
-    .create-capsule-select {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #d1d5db;
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      box-sizing: border-box;
-      background-color: white !important; /* Force light background */
-      color: #374151 !important; /* Force dark text */
-    }
-
-    .create-capsule-button {
-      width: 100%;
-      padding: 0.875rem 1rem;
-      margin-bottom: 0.5rem;
-      font-size: 1rem;
-      border-radius: 0.5rem;
-      box-sizing: border-box;
-    }
+   }
+   
+   .create-capsule-section {
+     margin-bottom: 2rem;
+     padding: 1rem;
+      background: white !important;
+     border-radius: 0.5rem;
+     border: 1px solid #e5e7eb;
+     width: 100%;
+     box-sizing: border-box;
+   }
+   
+   .create-capsule-field {
+     margin-bottom: 1.5rem;
+     width: 100%;
+   }
+   
+   .create-capsule-input,
+   .create-capsule-textarea,
+   .create-capsule-select {
+     width: 100%;
+     padding: 0.75rem;
+     border: 1px solid #d1d5db;
+     border-radius: 0.5rem;
+     font-size: 1rem;
+     box-sizing: border-box;
+      background-color: white !important;
+      color: #374151 !important;
+   }
+   
+   .create-capsule-button {
+     width: 100%;
+     padding: 0.875rem 1rem;
+     margin-bottom: 0.5rem;
+     font-size: 1rem;
+     border-radius: 0.5rem;
+     box-sizing: border-box;
+   }
   }
 
   /* Mobile Portrait Mode Specific Fixes */
   @media (max-width: 640px) and (orientation: portrait) {
     /* Force light theme in portrait mode */
     html, body {
-      background-color: #F8F8F8 !important; /* Force light background */
-      color: #2D2D2D !important; /* Force dark text */
-      color-scheme: light !important; /* Force light scheme */
+      background-color: #F8F8F8 !important;
+      color: #2D2D2D !important;
+      color-scheme: light !important;
     }
     
     .customize-container {
@@ -728,48 +727,48 @@
       margin-bottom: 1rem;
     }
    
-    /* Prevent horizontal overflow in portrait mode */
-    .create-capsule-portrait {
-      width: 100vw;
-      max-width: 100vw;
-      overflow-x: hidden;
-      padding: 0.5rem;
-      box-sizing: border-box;
-    }
-
-    .create-capsule-portrait * {
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-
-    /* Audio upload specific fixes for portrait */
-    .audio-upload-portrait {
-      width: calc(100vw - 2rem);
-      max-width: calc(100vw - 2rem);
-      margin: 1rem 0;
-      padding: 1rem;
-      box-sizing: border-box;
-      background-color: white !important; /* Force light background */
+   /* Prevent horizontal overflow in portrait mode */
+   .create-capsule-portrait {
+     width: 100vw;
+     max-width: 100vw;
+     overflow-x: hidden;
+     padding: 0.5rem;
+     box-sizing: border-box;
+   }
+   
+   .create-capsule-portrait * {
+     max-width: 100%;
+     box-sizing: border-box;
+   }
+   
+   /* Audio upload specific fixes for portrait */
+   .audio-upload-portrait {
+     width: calc(100vw - 2rem);
+     max-width: calc(100vw - 2rem);
+     margin: 1rem 0;
+     padding: 1rem;
+     box-sizing: border-box;
+      background-color: white !important;
       border: 1px solid #e5e7eb;
       border-radius: 0.5rem;
-    }
-
-    /* Transition options portrait fixes */
-    .transition-options-portrait {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      background-color: white !important; /* Force light background */
+   }
+   
+   /* Transition options portrait fixes */
+   .transition-options-portrait {
+     width: 100%;
+     display: flex;
+     flex-direction: column;
+     gap: 1rem;
+      background-color: white !important;
       padding: 1rem;
       border-radius: 0.5rem;
       border: 1px solid #e5e7eb;
-    }
-
-    .transition-options-portrait > * {
-      width: 100%;
-      margin-bottom: 1rem;
-    }
+   }
+   
+   .transition-options-portrait > * {
+     width: 100%;
+     margin-bottom: 1rem;
+   }
   }
 
   /* Fix slideshow preview jittering and flashing */
