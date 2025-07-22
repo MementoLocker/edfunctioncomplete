@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut,
   };
 
-  return <AuthContext.Provider value={value}>{children}</Auth-Context.Provider>;
+  return <AuthContext.Provider value={value}>{children}</Auth-Context.Provider>
 };
 
 // Create the useAuth hook for components to use
