@@ -258,6 +258,13 @@ export const Subscription: React.FC = () => {
     );
   }
 
+  // Debug logging for mobile issues
+  console.log('Subscription page - Profile data:', {
+    subscription_status: profile?.subscription_status,
+    stripe_price_id: profile?.stripe_price_id,
+    capsuleLimit: getCapsuleLimit(),
+    storageLimit: getStorageLimit()
+  });
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
