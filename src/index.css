@@ -429,8 +429,196 @@
       border-radius: 0.5rem;
       text-align: center;
     }
+
+    /* Fix mobile customize section layout overlapping */
+    .customize-section {
+      padding: 1rem 0.5rem;
+    }
+
+    .customize-form-group {
+      margin-bottom: 1.5rem;
+      width: 100%;
+    }
+
+    .customize-form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .customize-form-col {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .customize-select,
+    .customize-input {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .customize-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    /* Ensure audio upload section doesn't overlap */
+    .audio-upload-section {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      background: #f9fafb;
+    }
+
+    /* Fix transition options layout */
+    .transition-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .transition-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* Prevent text overflow in mobile forms */
+    .form-container {
+      overflow-x: hidden;
+      padding: 0 0.5rem;
+    }
+
+    .form-section {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .form-section:last-child {
+      border-bottom: none;
+    }
   }
 
+  /* Mobile Portrait Mode Specific Fixes */
+  @media (max-width: 640px) and (orientation: portrait) {
+    .customize-container {
+      padding: 0.5rem;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    .customize-grid {
+      display: block;
+      width: 100%;
+    }
+
+    .customize-section-spacing {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    /* Ensure dropdowns don't overflow */
+    select, .form-select {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Stack transition controls vertically */
+    .transition-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .transition-control-item {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+  }
+
+  /* Fix slideshow preview jittering and flashing */
+  .slideshow-preview {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: black;
+    overflow: hidden;
+  }
+
+  .slideshow-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  .slideshow-slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /* Prevent flashing during transitions */
+  .slideshow-slide img,
+  .slideshow-slide video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* Smooth transitions without jitter */
+  .slideshow-transition {
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+  }
+
+  /* Mobile slideshow optimizations */
+  @media (max-width: 640px) {
+    .slideshow-preview {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .slideshow-content {
+      padding: 1rem;
+    }
+
+    .slideshow-slide {
+      padding: 0.5rem;
+    }
+
+    /* Reduce animation complexity on mobile */
+    .slideshow-slide * {
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      will-change: auto;
+    }
+  }
   /* Font preview styles */
   .font-preview-playfair {
     font-family: 'Playfair Display', serif !important;
