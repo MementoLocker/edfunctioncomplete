@@ -386,104 +386,198 @@
       white-space: normal;
     }
     
-    /* Mobile tab navigation fixes */
-    .mobile-tab-nav {
+    /* Mobile tab navigation fixes - More specific selectors */
+    .mobile-tab-nav,
+    nav[class*="flex"][class*="space-x"],
+    div[class*="flex"][class*="space-x"]:has(button[class*="px-"]) {
       overflow-x: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
-    }
-    
-    .mobile-tab-nav::-webkit-scrollbar {
-      display: none;
-    }
-    
-    .mobile-tab-nav .nav-item {
-      flex-shrink: 0;
-      min-width: fit-content;
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      text-align: center;
-    }
-    
-    /* Fix create capsule mobile navigation */
-    .create-capsule-nav {
-      overflow-x: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-      white-space: nowrap;
-      display: flex;
+      display: flex !important;
+      flex-wrap: nowrap !important;
       gap: 0.5rem;
       padding: 0 1rem;
+      width: 100%;
     }
     
-    .create-capsule-nav::-webkit-scrollbar {
+    .mobile-tab-nav::-webkit-scrollbar,
+    nav[class*="flex"][class*="space-x"]::-webkit-scrollbar,
+    div[class*="flex"][class*="space-x"]:has(button[class*="px-"])::-webkit-scrollbar {
       display: none;
     }
     
-    .create-capsule-nav .nav-button {
+    .mobile-tab-nav .nav-item,
+    nav[class*="flex"] button,
+    div[class*="flex"] button[class*="px-"] {
       flex-shrink: 0;
       min-width: fit-content;
-      white-space: nowrap;
-      font-size: 0.875rem;
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem !important;
+      font-size: 0.75rem !important;
       text-align: center;
+      white-space: nowrap;
+      border-radius: 0.5rem;
+    }
+    
+    /* Fix create capsule mobile navigation - More aggressive targeting */
+    .create-capsule-nav,
+    div[class*="flex"]:has(button:contains("Details")),
+    div[class*="flex"]:has(button:contains("Media")),
+    div[class*="flex"]:has(button:contains("Customize")) {
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      white-space: nowrap;
+      display: flex !important;
+      gap: 0.5rem !important;
+      padding: 0 1rem !important;
+      width: 100% !important;
+      flex-wrap: nowrap !important;
+    }
+    
+    .create-capsule-nav::-webkit-scrollbar,
+    div[class*="flex"]:has(button:contains("Details"))::-webkit-scrollbar,
+    div[class*="flex"]:has(button:contains("Media"))::-webkit-scrollbar,
+    div[class*="flex"]:has(button:contains("Customize"))::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .create-capsule-nav .nav-button,
+    .create-capsule-nav button,
+    div[class*="flex"]:has(button:contains("Details")) button,
+    div[class*="flex"]:has(button:contains("Media")) button,
+    div[class*="flex"]:has(button:contains("Customize")) button {
+      flex-shrink: 0;
+      min-width: fit-content !important;
+      white-space: nowrap !important;
+      font-size: 0.75rem !important;
+      padding: 0.5rem 0.75rem !important;
+      border-radius: 0.5rem !important;
+      text-align: center;
+      max-width: none !important;
     }
   }
 
-  /* Font preview styles */
+  /* Font preview styles - Enhanced with !important for override */
   .font-preview-playfair {
     font-family: 'Playfair Display', serif !important;
+    font-weight: 400 !important;
   }
   
   .font-preview-inter {
     font-family: 'Inter', sans-serif !important;
+    font-weight: 400 !important;
   }
   
   .font-preview-lora {
     font-family: 'Lora', serif !important;
+    font-weight: 400 !important;
   }
   
   .font-preview-montserrat {
     font-family: 'Montserrat', sans-serif !important;
+    font-weight: 400 !important;
   }
   
   .font-preview-roboto {
     font-family: 'Roboto', sans-serif !important;
+    font-weight: 400 !important;
   }
   
   .font-preview-opensans {
     font-family: 'Open Sans', sans-serif !important;
+    font-weight: 400 !important;
   }
 
-  /* Font selection dropdown styling */
+  /* Font selection dropdown styling - Enhanced */
   .font-select option {
-    padding: 0.5rem;
-    font-size: 1rem;
+    padding: 0.75rem !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
   }
 
   .font-select option.font-preview-playfair {
     font-family: 'Playfair Display', serif !important;
+    font-weight: 400 !important;
   }
 
   .font-select option.font-preview-inter {
     font-family: 'Inter', sans-serif !important;
+    font-weight: 400 !important;
   }
 
   .font-select option.font-preview-lora {
     font-family: 'Lora', serif !important;
+    font-weight: 400 !important;
   }
 
   .font-select option.font-preview-montserrat {
     font-family: 'Montserrat', sans-serif !important;
+    font-weight: 400 !important;
   }
 
   .font-select option.font-preview-roboto {
     font-family: 'Roboto', sans-serif !important;
+    font-weight: 400 !important;
   }
 
   .font-select option.font-preview-opensans {
     font-family: 'Open Sans', sans-serif !important;
+    font-weight: 400 !important;
+  }
+
+  /* Global font application classes for dynamic use */
+  .apply-playfair {
+    font-family: 'Playfair Display', serif !important;
+  }
+
+  .apply-inter {
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  .apply-lora {
+    font-family: 'Lora', serif !important;
+  }
+
+  .apply-montserrat {
+    font-family: 'Montserrat', sans-serif !important;
+  }
+
+  .apply-roboto {
+    font-family: 'Roboto', sans-serif !important;
+  }
+
+  .apply-opensans {
+    font-family: 'Open Sans', sans-serif !important;
+  }
+
+  /* Force font loading and display */
+  select.font-select {
+    font-feature-settings: normal !important;
+    font-display: swap !important;
+  }
+
+  /* Additional mobile navigation fixes with broader selectors */
+  @media (max-width: 768px) {
+    /* Target any flex container with navigation-like buttons */
+    div[class*="flex"]:has(button[class*="bg-"]) {
+      overflow-x: auto !important;
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+      flex-wrap: nowrap !important;
+    }
+
+    div[class*="flex"]:has(button[class*="bg-"])::-webkit-scrollbar {
+      display: none !important;
+    }
+
+    /* Make buttons in navigation containers more mobile-friendly */
+    div[class*="flex"]:has(button[class*="bg-"]) button {
+      flex-shrink: 0 !important;
+      min-width: fit-content !important;
+      white-space: nowrap !important;
+      font-size: 0.75rem !important;
+      padding: 0.5rem 0.75rem !important;
+    }
   }
 
   /* Smooth Scrolling */
