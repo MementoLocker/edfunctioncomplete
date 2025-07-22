@@ -411,6 +411,9 @@
       scrollbar-width: none;
       -ms-overflow-style: none;
       white-space: nowrap;
+      display: flex;
+      gap: 0.5rem;
+      padding: 0 1rem;
     }
     
     .create-capsule-nav::-webkit-scrollbar {
@@ -421,8 +424,10 @@
       flex-shrink: 0;
       min-width: fit-content;
       white-space: nowrap;
-      font-size: 0.75rem;
-      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      text-align: center;
     }
   }
 
@@ -448,6 +453,36 @@
   }
   
   .font-preview-opensans {
+    font-family: 'Open Sans', sans-serif !important;
+  }
+
+  /* Font selection dropdown styling */
+  .font-select option {
+    padding: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .font-select option.font-preview-playfair {
+    font-family: 'Playfair Display', serif !important;
+  }
+
+  .font-select option.font-preview-inter {
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  .font-select option.font-preview-lora {
+    font-family: 'Lora', serif !important;
+  }
+
+  .font-select option.font-preview-montserrat {
+    font-family: 'Montserrat', sans-serif !important;
+  }
+
+  .font-select option.font-preview-roboto {
+    font-family: 'Roboto', sans-serif !important;
+  }
+
+  .font-select option.font-preview-opensans {
     font-family: 'Open Sans', sans-serif !important;
   }
 
