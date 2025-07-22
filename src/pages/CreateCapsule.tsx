@@ -975,11 +975,11 @@ export const CreateCapsule: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mt-8">
-          <div className="flex-1 relative">
+          <div className="flex-1 relative group">
             <button
               onClick={() => saveCapsule('draft')}
               disabled={loading}
-              className="w-full btn-outline py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group"
+              className="w-full btn-outline py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
@@ -991,7 +991,7 @@ export const CreateCapsule: React.FC = () => {
             </button>
             
             {/* Tooltip for Save as Draft */}
-            <div className="absolute bottom-full left-0 right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="absolute bottom-full left-0 right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
               <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg">
                 <div className="text-center">
                   This saves the details and text of your capsule, but not your uploaded photos or videos.

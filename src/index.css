@@ -372,14 +372,18 @@
       transform: none;
     }
     
-    /* Ensure mobile pages have white background and proper text color */
-    body, .min-h-screen, .bg-white {
+    /* Force white background for Create Capsule page on mobile */
+    .min-h-screen {
       background-color: white !important;
+    }
+
+    /* Ensure all text is readable on mobile */
+    body, .min-h-screen, .bg-white {
       color: #2D2D2D !important;
     }
 
-    /* Force white background for all major containers on mobile */
-    .bg-gray-50, .bg-gray-100 {
+    /* Force white background for containers on mobile */
+    .bg-gray-50 {
       background-color: white !important;
     }
 
@@ -389,45 +393,19 @@
       color: #2D2D2D !important;
     }
 
-    /* Mobile tab navigation improvements */
-    .mobile-tab-nav {
-      display: flex;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-      background-color: white;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 0 1rem;
+    /* Mobile tab navigation for Create Capsule */
+    .flex.overflow-x-auto.scrollbar-hide {
+      padding: 0 0.5rem;
     }
-
-    .mobile-tab-nav::-webkit-scrollbar {
-      display: none;
-    }
-
-    .mobile-tab-button {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.75rem 0.5rem;
+    
+    .flex.overflow-x-auto.scrollbar-hide button {
       font-size: 0.75rem;
-      font-weight: 500;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      min-width: 70px;
-      justify-content: center;
-      text-align: center;
+      padding: 0.75rem 0.5rem;
+      min-width: 65px;
+      max-width: 85px;
       white-space: nowrap;
-      color: #6b7280;
-    }
-
-    .mobile-tab-button.active {
-      color: #C0A172;
-      border-bottom-color: #C0A172;
-    }
-
-    .mobile-tab-button:hover {
-      color: #374151;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
 
