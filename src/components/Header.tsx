@@ -11,12 +11,15 @@ interface HeaderProps {
     email: string;
     avatar_url?: string;
   } | null;
+  profile?: {
+    avatar_url?: string;
+  } | null;
   onSignIn?: () => void;
   onSignOut?: () => void;
   onShare?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) => {
+const Header: React.FC<HeaderProps> = ({ user, profile, onSignIn, onSignOut, onShare }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -165,9 +168,9 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center space-x-3 bg-gray-50 px-4 py-2 h-12 rounded-none shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200"
                   >
-                    {user.avatar_url ? (
+                    {(profile?.avatar_url || user.avatar_url) ? (
                       <img
-                        src={user.avatar_url}
+                        src={profile?.avatar_url || user.avatar_url}
                         alt={user.name}
                         className="w-6 h-6 rounded-full object-cover"
                       />
@@ -305,13 +308,30 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onShare }) =
                   
                   {user ? (
                     <div className="space-y-3">
+                      <div className="flex items-center px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                        {(profile?.avatar_url || user.avatar_url) ? (
+                          <img
+                            src={profile?.avatar_url || user.avatar_url}
+                            alt={user.name}
+                            className="w-8 h-8 rounded-full object-cover border-2 border-gray-200 mr-3"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200 mr-3">
+                            <User className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium text-gray-800">{user.name}</div>
+                          <div className="text-xs text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
                       <Link
                         to="/create-capsule"
                         className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors rounded-none"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <User className="w-4 h-4 mr-3" />
-                        {user.name}
+                        <Package className="w-4 h-4 mr-3" />
+                        Create Capsule
                       </Link>
                       <Link
                         to="/my-capsules"
