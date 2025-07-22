@@ -44,6 +44,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (mode === 'signup') {
         const { error } = await signUp(data.email, data.password, data.name!)
         if (error) throw error
+        // Set flag for new user to show welcome modal
+        localStorage.setItem('mementolocker_new_user', 'true')
         // Show custom toast notification instead of alert
         setShowToast(true)
         reset()

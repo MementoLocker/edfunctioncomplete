@@ -24,7 +24,6 @@ import { MusicLibrary } from './pages/MusicLibrary';
 import { SponsorDashboard } from './pages/SponsorDashboard';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { useAuth } from './hooks/useAuth';
-import { supabase } from './lib/supabase';
 
 // This component scrolls the window to the top on navigation
 function ScrollToTop() {
@@ -45,28 +44,14 @@ function App() {
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
-  // When a new user signs in for the first time, create their profile
+  // Check for new user flag from signup and show welcome modal
   useEffect(() => {
-    if (user && !profile && !loading) {
-      const createProfileForNewUser = async () => {
-        try {
-          const { error } = await supabase
-            .from('profiles')
-            .insert({
-              id: user.id,
-              name: user.user_metadata?.name || user.email?.split('@')[0],
-              email: user.email,
-              subscription_status: 'trial',
-            });
-          if (error) throw error;
-          setShowWelcomeModal(true);
-        } catch (error) {
-          console.error('Error creating profile for first-time login:', error);
-        }
-      };
-      createProfileForNewUser();
+    const isNewUser = localStorage.getItem('mementolocker_new_user');
+    if (isNewUser && user) {
+      setShowWelcomeModal(true);
+      localStorage.removeItem('mementolocker_new_user');
     }
-  }, [user, profile, loading]);
+  }, [user]);
 
   const handleSignIn = () => setAuthModal({ isOpen: true, mode: 'signin' });
   const handleSignUp = () => setAuthModal({ isOpen: true, mode: 'signup' });
