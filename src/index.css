@@ -650,6 +650,7 @@
      border-radius: 0.5rem;
      border: 1px solid #e5e7eb;
      width: 100%;
+  }
      box-sizing: border-box;
    }
    
@@ -742,6 +743,7 @@
       max-width: 100%;
       box-sizing: border-box;
       background-color: #F8F8F8 !important;
+    }
 
     /* Stack transition controls vertically */
     .transition-controls {
