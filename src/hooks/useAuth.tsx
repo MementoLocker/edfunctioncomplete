@@ -30,31 +30,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChange fires immediately with the current session, so it handles the initial state
+    // Get initial session and profile
+    const fetchSessionAndProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        setProfile(profileData);
+      }
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
+    // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      setProfile(null); // Reset profile while we fetch the new one
 
       if (currentUser) {
-        try {
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
-
-          if (error) {
-            console.error('Error fetching profile:', error);
-          } else {
-            setProfile(profileData);
-          }
-        } catch (e) {
-          console.error('An unexpected error occurred while fetching the profile:', e);
-        }
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        setProfile(profileData);
+      } else {
+        // Clear profile on logout
+        setProfile(null);
       }
-      
-      // FIXED: Ensure loading is set to false after the listener fires
       setLoading(false);
     });
 
