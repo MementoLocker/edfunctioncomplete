@@ -299,7 +299,7 @@ export const MyCapsules: React.FC = () => {
                   <Users className="w-4 h-4 text-dusty-500" />
                   <span className="text-sm text-dusty-600">
                     {capsule.recipients?.length > 0 
-                      ? `${capsule.recipients.length} recipient${capsule.recipients.length > 1 ? 's' : ''}`
+                      ? \`${capsule.recipients.length} recipient${capsule.recipients.length > 1 ? 's' : ''}`
                       : 'No recipients'
                     }
                   </span>
