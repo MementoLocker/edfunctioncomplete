@@ -1,12 +1,14 @@
-@@ -2,7 +2,6 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
-import { User } from '@supabase/supabase-js';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 // Define the shape of your profile data
 interface Profile {
   id: string;
   name: string;
-@@ -12,75 +11,82 @@ interface Profile {
+  email: string;
+  subscription_status: string | null;
+  stripe_customer_id: string | null;
   avatar_url?: string;
 }
 
@@ -28,92 +30,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChange fires immediately with the current session, so it handles the initial state
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setProfile(null); // Reset profile while we fetch the new one
-    // This function runs only once to get the initial user and set up the listener
-    const setupAuth = async () => {
-      // 1. Get the initial user session
+    // Get initial session and profile just once on load
+    const fetchInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const initialUser = session?.user ?? null;
       setUser(initialUser);
 
-      if (currentUser) {
-      // 2. Fetch the profile if there is an initial user
       if (initialUser) {
-        try {
-          const { data: profileData, error } = await supabase
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', initialUser.id)
+          .single();
+        setProfile(profileData);
+      }
+      setLoading(false);
+    };
+
+    fetchInitialSession();
+
+    // Set up a listener for future auth changes (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        // Only clear the profile on SIGNED_OUT event.
+        // For all other events (like SIGNED_IN or TOKEN_REFRESHED), we fetch the profile.
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+        } else if (currentUser) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
-            .eq('id', initialUser.id)
             .single();
           setProfile(profileData);
-        } catch (error) {
-          console.error("Initial profile fetch error:", error);
         }
       }
+    );
 
-      // 3. The initial load is complete
-      setLoading(false);
-
-      // 4. Set up a listener for future auth changes (login/logout)
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          const currentUser = session?.user ?? null;
-          setUser(currentUser);
-          setProfile(null); // Always reset profile on auth change
-
-          if (error) {
-            console.error('Error fetching profile:', error);
-          } else {
-          if (currentUser) {
-            // Fetch profile for the new user
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', currentUser.id)
-              .single();
-            setProfile(profileData);
-          }
-        } catch (e) {
-          console.error('An unexpected error occurred while fetching the profile:', e);
-        }
-      }
-      
-      setLoading(false);
-    });
-      );
-
+    // Return the cleanup function
     return () => {
-      authListener.subscription.unsubscribe();
-      // 5. Return the cleanup function
-      return () => {
-        subscription.unsubscribe();
-      };
+      subscription.unsubscribe();
     };
-
-    setupAuth();
   }, []);
 
-  // Define the signOut function
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    }
     await supabase.auth.signOut();
   };
 
-  const value = {
-    user,
-    profile,
-    loading,
-    signOut,
-  };
   const value = { user, profile, loading, signOut };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -123,3 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
