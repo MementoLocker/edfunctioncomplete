@@ -106,68 +106,6 @@ export const CreateCapsule: React.FC = () => {
     }
   }, [editCapsuleId, user]);
 
-  const loadCapsuleForEditing = async (capsuleId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('capsules')
-        .select('*')
-        .eq('id', capsuleId)
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setTitle(data.title || '');
-        setMessage(data.message || '');
-        setRecipients(data.recipients || [{ name: '', email: '' }]);
-        setDeliveryDate(data.delivery_date ? new Date(data.delivery_date).toISOString().split('T')[0] : '');
-        
-        // Load media files from URLs
-        if (data.files && Array.isArray(data.files)) {
-          const loadedFiles: MediaFile[] = [];
-          for (const fileData of data.files) {
-            // Create a placeholder File object for existing files
-            const response = await fetch(fileData.url);
-            const blob = await response.blob();
-            const file = new File([blob], fileData.name, { type: blob.type });
-            
-            loadedFiles.push({
-              id: fileData.id,
-              file: file,
-              type: fileData.type,
-              url: fileData.url,
-              name: fileData.name,
-              size: fileData.size
-            });
-          }
-          setMediaFiles(loadedFiles);
-        }
-        
-        // Load customization settings
-        if (data.customization) {
-          const custom = data.customization;
-          setTitleFont(custom.titleFont || 'Playfair Display, serif');
-          setMessageFont(custom.messageFont || 'Inter, sans-serif');
-          setTitleSize(custom.titleSize || 'text-4xl');
-          setMessageSize(custom.messageSize || 'text-lg');
-          setBackgroundColor(custom.backgroundColor || '#FFFFFF');
-          setBackgroundType(custom.backgroundType || 'solid');
-          setGradientDirection(custom.gradientDirection || 'to-b');
-          setSecondaryColor(custom.secondaryColor || '#F3F4F6');
-          setTransitionEffect(custom.transitionEffect || 'fade');
-          setTransitionSpeed(custom.transitionSpeed || 'medium');
-          setSlideDuration(custom.slideDuration || 5000);
-          if (custom.backgroundMusic) {
-            setBackgroundMusic(custom.backgroundMusic);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading capsule for editing:', error);
-      triggerToast('Failed to load capsule for editing', 'error');
-    }
-  };
   const loadCapsuleData = async (capsuleId: string) => {
     setLoading(true);
     try {
@@ -551,6 +489,40 @@ export const CreateCapsule: React.FC = () => {
     setShowFileArrangement(false);
   };
 
+  const uploadMediaFiles = async () => {
+    const uploadedFiles = [];
+    
+    for (const mediaFile of mediaFiles) {
+      try {
+        const fileExt = mediaFile.file.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { data, error } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, mediaFile.file);
+        
+        if (error) throw error;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+        
+        uploadedFiles.push({
+          id: mediaFile.id,
+          name: mediaFile.file.name,
+          type: mediaFile.type,
+          url: publicUrl,
+          size: mediaFile.file.size
+        });
+      } catch (error) {
+        console.error(`Failed to upload ${mediaFile.file.name}:`, error);
+        throw new Error(`Failed to upload ${mediaFile.file.name}`);
+      }
+    }
+    
+    return uploadedFiles;
+  };
+
   // Handle form submission
   const handleSubmit = async (saveAsDraft = false) => {
     if (!saveAsDraft) {
@@ -584,43 +556,8 @@ export const CreateCapsule: React.FC = () => {
 
     setLoading(true);
     try {
-      // Upload media files to Supabase Storage and get URLs
-      const uploadedFiles = [];
-      
-      if (mediaFiles.length > 0) {
-        for (const mediaFile of mediaFiles) {
-          try {
-            const fileExt = mediaFile.file.name.split('.').pop();
-            const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-            
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('avatars')
-              .upload(fileName, mediaFile.file);
-
-            if (uploadError) {
-              console.error('Upload error for file:', mediaFile.name, uploadError);
-              throw uploadError;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-              .from('avatars')
-              .getPublicUrl(fileName);
-
-            uploadedFiles.push({
-              id: mediaFile.id,
-              name: mediaFile.name,
-              type: mediaFile.type,
-              url: publicUrl,
-              size: mediaFile.size
-            });
-          } catch (fileError) {
-            console.error('Error uploading file:', mediaFile.name, fileError);
-            triggerToast(`Failed to upload ${mediaFile.name}`, 'error');
-            setLoading(false);
-            return;
-          }
-        }
-      }
+      // Upload media files to Supabase Storage
+      const uploadedFiles = await uploadMediaFiles();
 
       // Prepare delivery date
       let finalDeliveryDate = deliveryDate;
