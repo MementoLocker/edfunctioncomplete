@@ -334,6 +334,16 @@ export const MyCapsules: React.FC = () => {
                     </button>
                   )}
                   
+                  {capsule.status === 'sealed' && (
+                    <button
+                      onClick={() => handleEditCapsule(capsule.id)}
+                      className="flex-1 btn-primary py-2 text-sm"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </button>
+                  )}
+                  
                   {capsule.status !== 'draft' && (
                     <button
                       // Calling the renamed function here
