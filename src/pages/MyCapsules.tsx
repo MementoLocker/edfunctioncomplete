@@ -217,14 +217,11 @@ export const MyCapsules: React.FC = () => {
                     onClick={() => setActiveFilter(filter.key as any)}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                       activeFilter === filter.key
-                        ? 'bg-dusty-600 text-white shadow-md'
+                        ? 'bg-dusty-500 text-white'
                         : 'text-dusty-600 hover:bg-dusty-50'
                     }`}
                   >
-                    {filter.label}
-                    <span className="ml-2 px-2 py-1 text-xs rounded-full bg-white bg-opacity-20">
-                      {filter.count}
-                    </span>
+                    {filter.label} ({filter.count})
                   </button>
                 ))}
               </div>
@@ -299,7 +296,7 @@ export const MyCapsules: React.FC = () => {
                   <Users className="w-4 h-4 text-dusty-500" />
                   <span className="text-sm text-dusty-600">
                     {capsule.recipients?.length > 0 
-                      ? \`${capsule.recipients.length} recipient${capsule.recipients.length > 1 ? 's' : ''}`
+                      ? `${capsule.recipients.length} recipient${capsule.recipients.length > 1 ? 's' : ''}`
                       : 'No recipients'
                     }
                   </span>
@@ -337,7 +334,7 @@ export const MyCapsules: React.FC = () => {
                     </button>
                   )}
                   
-                  {(capsule.status === 'sealed' || capsule.status === 'sent') && (
+                  {capsule.status !== 'draft' && (
                     <button
                       // Calling the renamed function here
                       onClick={() => triggerToast('Preview functionality available in edit mode', 'info')}
