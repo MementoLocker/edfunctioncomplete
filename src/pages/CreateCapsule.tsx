@@ -159,7 +159,7 @@ export const CreateCapsule: React.FC = () => {
           setTransitionSpeed(custom.transitionSpeed || 'medium');
           setSlideDuration(custom.slideDuration || 5000);
           if (custom.backgroundMusic) {
-            setSelectedBackgroundMusic(custom.backgroundMusic);
+            setBackgroundMusic(custom.backgroundMusic);
           }
         }
       }
@@ -647,12 +647,7 @@ export const CreateCapsule: React.FC = () => {
         message: message.trim() || null,
         recipients: validRecipients,
         delivery_date: `${finalDeliveryDate}T${deliveryTime}:00.000Z`,
-        files: mediaFiles.map(file => ({
         files: uploadedFiles,
-          name: file.name,
-          type: file.type,
-          size: file.size
-        })),
         customization: {
           senderName: senderName.trim() || null,
           titleFont,
@@ -670,19 +665,8 @@ export const CreateCapsule: React.FC = () => {
         }
       };
 
-      const result = await supabase
-        .from('capsules')
-        .insert({
-          user_id: user.id,
-          ...capsuleData
-        });
-
-      if (result.error) {
-        console.error('Insert error:', result.error);
-        throw result.error;
-      }
-
       let result;
+      const isEditing = !!editCapsuleId;
       if (isEditing) {
         result = await supabase
           .from('capsules')
@@ -693,11 +677,15 @@ export const CreateCapsule: React.FC = () => {
           .from('capsules')
           .insert({ ...capsuleData, user_id: user.id });
       }
-        triggerToast('Draft saved successfully!', 'success');
+
       if (result.error) {
         console.error('Database error:', result.error);
         throw result.error;
       }
+
+      if (saveAsDraft) {
+        triggerToast('Draft saved successfully!', 'success');
+        setTimeout(() => {
           navigate('/my-capsules');
         }, 2000);
       } else {
@@ -707,16 +695,9 @@ export const CreateCapsule: React.FC = () => {
         }, 2000);
       }
     } catch (error) {
-      
-      // More specific error messages
-      let errorMessage = 'Failed to save draft. Please try again.';
-      if (error.message) {
-        errorMessage = `Failed to save draft: ${error.message}`;
-      }
-      
-      console.error('Error saving draft:', error);
+      console.error('Error saving capsule:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      triggerToast(`Failed to save draft: ${errorMessage}`, 'error');
+      triggerToast(`Failed to save: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -1904,7 +1885,7 @@ export const CreateCapsule: React.FC = () => {
                   onClick={() => setShowMusicLibrary(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {loading ? 'Saving...' : 'Save and Seal'}
+                  <X className="w-6 h-6" />
                 </button>
               </div>
 
