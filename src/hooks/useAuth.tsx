@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq('id', initialUser.id)
             .single();
           setProfile(profileData);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Initial profile fetch error:", error);
         }
       }
