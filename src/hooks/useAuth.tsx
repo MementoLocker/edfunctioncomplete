@@ -30,48 +30,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // The onAuthStateChange listener handles all auth events, including initial load.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Get initial session and profile
+    const fetchSessionAndProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
-      // Fetch profile only if there is a user
       if (currentUser) {
-        try {
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching profile:', error);
-            setProfile(null);
-          } else {
-            setProfile(profileData);
-          }
-        } catch (e) {
-          console.error('An error occurred while fetching profile:', e);
-          setProfile(null);
-        }
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        setProfile(profileData);
+      }
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
+    // Listen for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setLoading(false);
+
+      if (currentUser) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        setProfile(profileData);
       } else {
-        // If there's no user, ensure profile is also null
+        // Clear profile on logout
         setProfile(null);
       }
-      
-      // Set loading to false once the initial auth state and profile (if any) are determined
-      setLoading(false);
     });
 
-    // Cleanup the listener when the component unmounts
     return () => {
-      subscription.unsubscribe();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
   // Define the signOut function
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const value = {
