@@ -25,6 +25,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Function to fetch profile data
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      setProfile(profileData);
+    } catch (error: unknown) {
+      console.error("Profile fetch error:", error);
+    }
+  };
+
+  // Function to re-validate session and profile
+  const revalidateSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      
+      if (currentUser && (!user || user.id !== currentUser.id)) {
+        setUser(currentUser);
+        await fetchProfile(currentUser.id);
+      } else if (!currentUser && user) {
+        setUser(null);
+        setProfile(null);
+      } else if (currentUser && user && !profile) {
+        // User exists but profile is missing - refetch profile
+        await fetchProfile(currentUser.id);
+      }
+    } catch (error: unknown) {
+      console.error("Session revalidation error:", error);
+    }
+  };
+
   useEffect(() => {
     // This function runs only once to get the initial user and set up the listener
     const setupAuth = async () => {
@@ -35,16 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // 2. Fetch the profile if there is an initial user
       if (initialUser) {
-        try {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialUser.id)
-            .single();
-          setProfile(profileData);
-        } catch (error: unknown) {
-          console.error("Initial profile fetch error:", error);
-        }
+        await fetchProfile(initialUser.id);
       }
 
       // 3. The initial load is complete
@@ -59,12 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           if (currentUser) {
             // Fetch profile for the new user
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', currentUser.id)
-              .single();
-            setProfile(profileData);
+            await fetchProfile(currentUser.id);
           }
         }
       );
@@ -77,6 +98,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     setupAuth();
   }, []);
+
+  // Add visibility change listener to re-validate session when tab becomes active
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Tab became visible - revalidate session and profile
+        revalidateSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, profile]);
+
+  // Re-fetch profile if user exists but profile is missing
+  useEffect(() => {
+    if (user && !profile && !loading) {
+      fetchProfile(user.id);
+    }
+  }, [user, profile, loading]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
