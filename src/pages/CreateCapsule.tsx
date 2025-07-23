@@ -584,29 +584,42 @@ export const CreateCapsule: React.FC = () => {
 
     setLoading(true);
     try {
-      // Upload media files to Supabase Storage first
+      // Upload media files to Supabase Storage and get URLs
       const uploadedFiles = [];
-      for (const mediaFile of mediaFiles) {
-        const fileExt = mediaFile.file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, mediaFile.file);
+      
+      if (mediaFiles.length > 0) {
+        for (const mediaFile of mediaFiles) {
+          try {
+            const fileExt = mediaFile.file.name.split('.').pop();
+            const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('avatars')
+              .upload(fileName, mediaFile.file);
 
-        if (uploadError) throw uploadError;
+            if (uploadError) {
+              console.error('Upload error for file:', mediaFile.name, uploadError);
+              throw uploadError;
+            }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(fileName);
+            const { data: { publicUrl } } = supabase.storage
+              .from('avatars')
+              .getPublicUrl(fileName);
 
-        uploadedFiles.push({
-          id: mediaFile.id,
-          name: mediaFile.name,
-          type: mediaFile.type,
-          url: publicUrl,
-          size: mediaFile.size
-        });
+            uploadedFiles.push({
+              id: mediaFile.id,
+              name: mediaFile.name,
+              type: mediaFile.type,
+              url: publicUrl,
+              size: mediaFile.size
+            });
+          } catch (fileError) {
+            console.error('Error uploading file:', mediaFile.name, fileError);
+            triggerToast(`Failed to upload ${mediaFile.name}`, 'error');
+            setLoading(false);
+            return;
+          }
+        }
       }
 
       // Prepare delivery date
@@ -669,11 +682,22 @@ export const CreateCapsule: React.FC = () => {
         throw result.error;
       }
 
-      console.log('Draft saved successfully');
-
-      if (saveAsDraft) {
+      let result;
+      if (isEditing) {
+        result = await supabase
+          .from('capsules')
+          .update(capsuleData)
+          .eq('id', editCapsuleId);
+      } else {
+        result = await supabase
+          .from('capsules')
+          .insert({ ...capsuleData, user_id: user.id });
+      }
         triggerToast('Draft saved successfully!', 'success');
-        setTimeout(() => {
+      if (result.error) {
+        console.error('Database error:', result.error);
+        throw result.error;
+      }
           navigate('/my-capsules');
         }, 2000);
       } else {
@@ -683,7 +707,6 @@ export const CreateCapsule: React.FC = () => {
         }, 2000);
       }
     } catch (error) {
-      console.error('Error saving draft:', error);
       
       // More specific error messages
       let errorMessage = 'Failed to save draft. Please try again.';
@@ -691,7 +714,9 @@ export const CreateCapsule: React.FC = () => {
         errorMessage = `Failed to save draft: ${error.message}`;
       }
       
-      triggerToast(errorMessage, 'error');
+      console.error('Error saving draft:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      triggerToast(`Failed to save draft: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }
