@@ -489,33 +489,46 @@ export const CreateCapsule: React.FC = () => {
     setShowFileArrangement(false);
   };
 
-  const uploadMediaFiles = async () => {
+  const uploadMediaFiles = async (files: MediaFile[]) => {
     const uploadedFiles = [];
     
-    for (const mediaFile of mediaFiles) {
+    for (const mediaFile of files) {
       try {
-        const fileExt = mediaFile.file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        // Create a unique filename with proper extension
+        const fileExt = mediaFile.file.name.split('.').pop() || 'bin';
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(2, 15);
+        const fileName = `${user?.id}/capsules/${timestamp}-${randomId}.${fileExt}`;
         
-        const { data, error } = await supabase.storage
+        console.log('Uploading file:', fileName, 'Size:', mediaFile.file.size);
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(fileName, mediaFile.file);
-        
-        if (error) throw error;
+
+        if (uploadError) {
+          console.error('Upload error for file:', fileName, uploadError);
+          throw uploadError;
+        }
+
+        console.log('Upload successful:', uploadData);
         
         const { data: { publicUrl } } = supabase.storage
           .from('avatars')
           .getPublicUrl(fileName);
+
+        console.log('Public URL generated:', publicUrl);
         
         uploadedFiles.push({
           id: mediaFile.id,
           name: mediaFile.file.name,
           type: mediaFile.type,
           url: publicUrl,
-          size: mediaFile.file.size
+          size: mediaFile.file.size,
+          storage_path: fileName
         });
       } catch (error) {
-        console.error(`Failed to upload ${mediaFile.file.name}:`, error);
+        console.error('Error uploading file:', mediaFile.file.name, error);
         throw new Error(`Failed to upload ${mediaFile.file.name}`);
       }
     }
@@ -557,7 +570,7 @@ export const CreateCapsule: React.FC = () => {
     setLoading(true);
     try {
       // Upload media files to Supabase Storage
-      const uploadedFiles = await uploadMediaFiles();
+      const uploadedFiles = await uploadMediaFiles(mediaFiles);
 
       // Prepare delivery date
       let finalDeliveryDate = deliveryDate;
@@ -646,6 +659,158 @@ export const CreateCapsule: React.FC = () => {
 
   const handleFinalSubmit = () => {
     handleSubmit(false);
+  };
+
+  const handleSaveDraft = async () => {
+    if (!user || !title.trim()) {
+      triggerToast('Please enter a title for your time capsule', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('Starting draft save with media files:', mediaFiles.length);
+      
+      // Upload media files first
+      const uploadedFiles = await uploadMediaFiles(mediaFiles);
+      console.log('Uploaded files result:', uploadedFiles);
+
+      const capsuleData = {
+        user_id: user.id,
+        title: title.trim(),
+        message: message.trim(),
+        recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
+        delivery_date: deliveryDate,
+        files: JSON.stringify(uploadedFiles),
+        customization: {
+          titleFont,
+          messageFont,
+          titleSize,
+          messageSize,
+          backgroundColor,
+          backgroundType,
+          gradientDirection,
+          secondaryColor,
+          slideDuration,
+          transitionEffect,
+          transitionSpeed,
+          backgroundMusic
+        },
+        status: 'draft'
+      };
+
+      console.log('Saving capsule data:', capsuleData);
+      
+      if (isEditing && editCapsuleId) {
+        const { error } = await supabase
+          .from('capsules')
+          .update(capsuleData)
+          .eq('id', editCapsuleId);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('capsules')
+          .insert(capsuleData);
+        
+        if (error) throw error;
+      }
+
+      triggerToast('Draft saved successfully!', 'success');
+      setTimeout(() => navigate('/my-capsules'), 1500);
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      triggerToast('Failed to save draft. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCapsuleForEditing = async (capsuleId: string) => {
+    try {
+      console.log('Loading capsule for editing:', capsuleId);
+      
+      const { data, error } = await supabase
+        .from('capsules')
+        .select('*')
+        .eq('id', capsuleId)
+        .single();
+
+      if (error) throw error;
+      if (!data) return;
+
+      console.log('Loaded capsule data:', data);
+      
+      // Load basic fields
+      setTitle(data.title || '');
+      setMessage(data.message || '');
+      setRecipients(data.recipients || [{ name: '', email: '' }]);
+      setDeliveryDate(data.delivery_date ? new Date(data.delivery_date).toISOString().split('T')[0] : '');
+
+      // Load customization
+      const customization = data.customization || {};
+      setTitleFont(customization.titleFont || 'Playfair Display, serif');
+      setMessageFont(customization.messageFont || 'Inter, sans-serif');
+      setTitleSize(customization.titleSize || 'text-4xl');
+      setMessageSize(customization.messageSize || 'text-lg');
+      setBackgroundColor(customization.backgroundColor || '#FFFFFF');
+      setBackgroundType(customization.backgroundType || 'solid');
+      setGradientDirection(customization.gradientDirection || 'to-b');
+      setSecondaryColor(customization.secondaryColor || '#F3F4F6');
+      setTransitionEffect(customization.transitionEffect || 'fade');
+      setTransitionSpeed(customization.transitionSpeed || 'medium');
+      setSlideDuration(customization.slideDuration || 5000);
+      setSelectedBackgroundMusic(customization.backgroundMusic || null);
+
+      // Load media files
+      let filesData = data.files;
+      if (typeof filesData === 'string') {
+        try {
+          filesData = JSON.parse(filesData);
+        } catch (e) {
+          console.error('Error parsing files JSON:', e);
+          filesData = [];
+        }
+      }
+      
+      console.log('Files data to load:', filesData);
+      
+      if (filesData && Array.isArray(filesData)) {
+        const loadedMediaFiles: MediaFile[] = [];
+        
+        for (const fileData of filesData) {
+          try {
+            console.log('Processing file data:', fileData);
+            
+            // Create a blob from the URL to simulate a File object
+            const response = await fetch(fileData.url);
+            const blob = await response.blob();
+            
+            // Create a File object from the blob
+            const file = new File([blob], fileData.name, { type: blob.type });
+            
+            loadedMediaFiles.push({
+              id: fileData.id,
+              file: file,
+              type: fileData.type,
+              url: fileData.url,
+              name: fileData.name,
+              size: fileData.size || blob.size
+            });
+            
+            console.log('Successfully loaded file:', fileData.name);
+          } catch (error) {
+            console.error('Error loading media file:', fileData.name, error);
+          }
+        }
+        
+        console.log('Setting media files:', loadedMediaFiles);
+        setMediaFiles(loadedMediaFiles);
+      }
+    } catch (error) {
+      console.error('Error loading capsule:', error);
+      triggerToast('Failed to load capsule for editing', 'error');
+    }
   };
 
   if (loading && editCapsuleId) {
