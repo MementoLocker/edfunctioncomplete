@@ -211,17 +211,16 @@ export const MyCapsules: React.FC = () => {
                   { key: 'draft', label: 'Drafts', count: getCategoryCount('draft') },
                   { key: 'sealed', label: 'Ready', count: getCategoryCount('sealed') },
                   { key: 'sent', label: 'Sent', count: getCategoryCount('sent') }
-                ].map((filter) => (
+                {(capsule.status === 'sealed' || capsule.status === 'sent') && (
                   <button
                     key={filter.key}
                     onClick={() => setActiveFilter(filter.key as any)}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                       activeFilter === filter.key
-                        ? 'bg-dusty-500 text-white'
-                        : 'text-dusty-600 hover:bg-dusty-50'
-                    }`}
-                  >
-                    {filter.label} ({filter.count})
+                    onClick={() => handleEditCapsule(capsule.id)}
+                    className="flex-1 btn-primary py-2 text-sm"
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
                   </button>
                 ))}
               </div>
