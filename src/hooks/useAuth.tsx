@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+// Define the shape of your profile data
 interface Profile {
   id: string;
   name: string;
@@ -11,6 +12,7 @@ interface Profile {
   avatar_url?: string;
 }
 
+// Define the shape of the Auth context
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
@@ -18,119 +20,82 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+// Create the Auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Create the AuthProvider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Function to fetch profile data
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      setProfile(profileData);
-    } catch (error: unknown) {
-      console.error("Profile fetch error:", error);
-    }
-  };
-
-  // Function to re-validate session and profile
-  const revalidateSession = async () => {
-    try {
+  useEffect(() => {
+    // Get initial session and profile
+    const fetchSessionAndProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
-      
-      if (currentUser && (!user || user.id !== currentUser.id)) {
-        setUser(currentUser);
-        await fetchProfile(currentUser.id);
-      } else if (!currentUser && user) {
-        setUser(null);
-        setProfile(null);
-      } else if (currentUser && user && !profile) {
-        // User exists but profile is missing - refetch profile
-        await fetchProfile(currentUser.id);
+      setUser(currentUser);
+
+      if (currentUser) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        setProfile(profileData);
       }
-    } catch (error: unknown) {
-      console.error("Session revalidation error:", error);
-    }
-  };
-
-  useEffect(() => {
-    // This function runs only once to get the initial user and set up the listener
-    const setupAuth = async () => {
-      // 1. Get the initial user session
-      const { data: { session } } = await supabase.auth.getSession();
-      const initialUser = session?.user ?? null;
-      setUser(initialUser);
-
-      // 2. Fetch the profile if there is an initial user
-      if (initialUser) {
-        await fetchProfile(initialUser.id);
-      }
-
-      // 3. The initial load is complete
       setLoading(false);
+    };
 
-      // 4. Set up a listener for future auth changes (login/logout)
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          const currentUser = session?.user ?? null;
-          setUser(currentUser);
-          setProfile(null); // Always reset profile on auth change
+    fetchSessionAndProfile();
 
-          if (currentUser) {
-            // Fetch profile for the new user
-            await fetchProfile(currentUser.id);
-          }
+    // Listen for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        // This is the targeted fix:
+        // Only clear the profile if the user has truly signed out.
+        // For other events (like TOKEN_REFRESHED, which happens on tab focus),
+        // we keep the old profile data until the new data has loaded.
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+        } else if (currentUser) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+          setProfile(profileData);
         }
-      );
-
-      // 5. Return the cleanup function
-      return () => {
-        subscription.unsubscribe();
-      };
-    };
-
-    setupAuth();
-  }, []);
-
-  // Add visibility change listener to re-validate session when tab becomes active
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Tab became visible - revalidate session and profile
-        revalidateSession();
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    );
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      authListener.subscription.unsubscribe();
     };
-  }, [user, profile]);
+  }, []);
 
-  // Re-fetch profile if user exists but profile is missing
-  useEffect(() => {
-    if (user && !profile && !loading) {
-      fetchProfile(user.id);
-    }
-  }, [user, profile, loading]);
-
+  // Define the signOut function
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
-  const value = { user, profile, loading, signOut };
+  const value = {
+    user,
+    profile,
+    loading,
+    signOut,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Create the useAuth hook for components to use
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
