@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -7,32 +7,31 @@ const CreateCapsule = () => {
   const [description, setDescription] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const user = supabase.auth.getUser();
-
+  // Load draft if URL has ?draftId=
   useEffect(() => {
-    // If editing an existing draft (e.g., from route or props), fetch it
     const loadDraft = async () => {
-      const draftIdFromUrl = new URLSearchParams(window.location.search).get('draftId');
-      if (draftIdFromUrl) {
-        setDraftId(draftIdFromUrl);
-        const { data, error } = await supabase
-          .from('capsules')
-          .select('*')
-          .eq('id', draftIdFromUrl)
-          .single();
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get('draftId');
+      if (!id) return;
 
-        if (error) {
-          console.error('Failed to load draft:', error.message);
-          return;
-        }
+      setDraftId(id);
+      const { data, error } = await supabase
+        .from('capsules')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-        setTitle(data.title);
-        setDescription(data.description);
-        setMediaUrls(data.media_urls || []);
+      if (error) {
+        console.error('Failed to fetch draft:', error.message);
+        return;
       }
+
+      setTitle(data.title || '');
+      setDescription(data.description || '');
+      setMediaUrls(data.media_urls || []);
     };
 
     loadDraft();
@@ -44,42 +43,53 @@ const CreateCapsule = () => {
     }
   };
 
+  const uploadMediaFiles = async (): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+
+    for (const file of mediaFiles) {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${uuidv4()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError.message);
+        continue;
+      }
+
+      const { data } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      if (data?.publicUrl) {
+        uploadedUrls.push(data.publicUrl);
+      }
+    }
+
+    return uploadedUrls;
+  };
+
   const handleSaveDraft = async () => {
     setLoading(true);
+
     try {
-      let uploadedUrls: string[] = [];
+      let allMediaUrls = [...mediaUrls];
 
+      // Only upload new files
       if (mediaFiles.length > 0) {
-        const uploads = await Promise.all(
-          mediaFiles.map(async (file) => {
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${uuidv4()}.${fileExt}`;
-
-            const { error: uploadError } = await supabase.storage
-              .from('media')
-              .upload(filePath, file);
-
-            if (uploadError) {
-              throw new Error(`Failed to upload file: ${uploadError.message}`);
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-              .from('media')
-              .getPublicUrl(filePath);
-
-            return publicUrl;
-          })
-        );
-
-        uploadedUrls = uploads;
+        const newUrls = await uploadMediaFiles();
+        allMediaUrls = [...allMediaUrls, ...newUrls];
+        setMediaUrls(allMediaUrls); // update preview too
       }
 
       const payload = {
         title,
         description,
-        media_urls: uploadedUrls,
+        media_urls: allMediaUrls,
         is_draft: true,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       if (draftId) {
@@ -88,23 +98,23 @@ const CreateCapsule = () => {
           .update(payload)
           .eq('id', draftId);
 
-        if (error) throw new Error(error.message);
+        if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('capsules')
-          .insert([{ ...payload }])
+          .insert(payload)
           .select()
           .single();
 
-        if (error) throw new Error(error.message);
-        setDraftId(data.id);
+        if (error) throw error;
+        setDraftId(data.id); // Save the draft ID for future updates
       }
 
       setMediaFiles([]);
-      alert('Draft saved!');
+      alert('Draft saved successfully!');
     } catch (err: any) {
-      console.error(err.message);
-      alert('Failed to save draft.');
+      console.error('Error saving draft:', err.message);
+      alert('Failed to save draft. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -127,7 +137,12 @@ const CreateCapsule = () => {
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      <input type="file" multiple accept="image/*,video/*" onChange={handleFileChange} />
+      <input
+        type="file"
+        multiple
+        accept="image/*,video/*"
+        onChange={handleFileChange}
+      />
 
       <button onClick={handleSaveDraft} disabled={loading}>
         {loading ? 'Saving...' : 'Save as Draft'}
@@ -135,14 +150,16 @@ const CreateCapsule = () => {
 
       {mediaUrls.length > 0 && (
         <div className="media-preview">
-          <h4>Uploaded Media:</h4>
-          {mediaUrls.map((url, idx) =>
-            url.match(/\.(jpeg|jpg|gif|png)$/) ? (
-              <img key={idx} src={url} alt={`media-${idx}`} width="200" />
-            ) : (
-              <video key={idx} src={url} controls width="200" />
-            )
-          )}
+          <h4>Attached Media:</h4>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            {mediaUrls.map((url, index) =>
+              url.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
+                <img key={index} src={url} alt={`media-${index}`} width="200" />
+              ) : (
+                <video key={index} src={url} controls width="200" />
+              )
+            )}
+          </div>
         </div>
       )}
     </div>
