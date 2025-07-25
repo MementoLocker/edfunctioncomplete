@@ -30,39 +30,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChange fires immediately with the current session, so it handles all cases.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      // Only clear the profile if the user explicitly signs out.
-      // This prevents the flicker when the tab is re-focused.
-      if (event === 'SIGNED_OUT') {
-        setProfile(null);
-      } else if (currentUser) {
-        // If there's a user, fetch their profile.
-        try {
-          const { data: profileData, error } = await supabase
+    // --- Phase 1: Initial Load ---
+    // This runs only once to determine the initial auth state when the app first loads.
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
             .single();
-
-          if (error) throw error;
           setProfile(profileData);
+        }
+      } catch (error) {
+        console.error("Error during initial session fetch:", error);
+      } finally {
+        // This is critical: set loading to false AFTER the initial check is complete.
+        setLoading(false);
+      }
+    };
 
-        } catch (error) {
-          console.error('Error fetching profile:', error);
+    getInitialSession();
+
+    // --- Phase 2: Listen for Future Changes ---
+    // This listener only reacts to explicit sign-in or sign-out events.
+    // It avoids the loop caused by token refreshes on tab focus.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          setUser(session!.user);
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session!.user.id)
+            .single();
+          setProfile(profileData);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
           setProfile(null);
         }
       }
-      
-      // CRITICAL FIX: This was the missing piece.
-      // Ensure loading is set to false after every auth event is handled.
-      setLoading(false);
-    });
+    );
 
-    // Cleanup the listener when the component unmounts.
+    // Cleanup the listener when the component is no longer on screen.
     return () => {
       subscription.unsubscribe();
     };
