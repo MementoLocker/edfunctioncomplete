@@ -8,14 +8,7 @@ interface Profile {
   email: string;
   subscription_status: string | null;
   stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-  stripe_price_id: string | null;
   avatar_url?: string;
-  trial_start_date?: string;
-  trial_end_date?: string;
-  capsules_sent?: number;
-  created_at?: string;
-  updated_at?: string;
 }
 
 interface AuthContextType {
@@ -31,115 +24,111 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    if (initialized) return;
-    
-    let mounted = true;
-    
-    const initAuth = async () => {
-      try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        if (error) {
-          console.error('Session error:', error);
-          setLoading(false);
-          setInitialized(true);
-          return;
-        }
-
-        if (session?.user) {
-          setUser(session.user);
-          
-          // Get profile
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (mounted && profileData) {
-              setProfile(profileData);
-            }
-          } catch (profileError) {
-            console.error('Profile error:', profileError);
-          }
-        }
-        
-        if (mounted) {
-          setLoading(false);
-          setInitialized(true);
-        }
-      } catch (error) {
-        console.error('Init auth error:', error);
-        if (mounted) {
-          setLoading(false);
-          setInitialized(true);
-        }
-      }
-    };
-
-    initAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-
-        console.log('Auth state change:', event);
-
-        if (session?.user) {
-          setUser(session.user);
-          
-          // Only fetch profile if we don't have one or user changed
-          if (!profile || profile.id !== session.user.id) {
-            try {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (mounted && profileData) {
-                setProfile(profileData);
-              }
-            } catch (error) {
-              console.error('Profile fetch error:', error);
-            }
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [initialized]); // Only depend on initialized flag
-
-  const signOut = async () => {
+  // Function to fetch profile data
+  const fetchProfile = async (userId: string) => {
     try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-    } catch (error) {
-      console.error('Sign out error:', error);
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      setProfile(profileData);
+    } catch (error: unknown) {
+      console.error("Profile fetch error:", error);
     }
   };
 
-  return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  // Function to re-validate session and profile
+  const revalidateSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      
+      if (currentUser && (!user || user.id !== currentUser.id)) {
+        setUser(currentUser);
+        await fetchProfile(currentUser.id);
+      } else if (!currentUser && user) {
+        setUser(null);
+        setProfile(null);
+      } else if (currentUser && user && !profile) {
+        // User exists but profile is missing - refetch profile
+        await fetchProfile(currentUser.id);
+      }
+    } catch (error: unknown) {
+      console.error("Session revalidation error:", error);
+    }
+  };
+
+  useEffect(() => {
+    // This function runs only once to get the initial user and set up the listener
+    const setupAuth = async () => {
+      // 1. Get the initial user session
+      const { data: { session } } = await supabase.auth.getSession();
+      const initialUser = session?.user ?? null;
+      setUser(initialUser);
+
+      // 2. Fetch the profile if there is an initial user
+      if (initialUser) {
+        await fetchProfile(initialUser.id);
+      }
+
+      // 3. The initial load is complete
+      setLoading(false);
+
+      // 4. Set up a listener for future auth changes (login/logout)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          setProfile(null); // Always reset profile on auth change
+
+          if (currentUser) {
+            // Fetch profile for the new user
+            await fetchProfile(currentUser.id);
+          }
+        }
+      );
+
+      // 5. Return the cleanup function
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+
+    setupAuth();
+  }, []);
+
+  // Add visibility change listener to re-validate session when tab becomes active
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Tab became visible - revalidate session and profile
+        revalidateSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, profile]);
+
+  // Re-fetch profile if user exists but profile is missing
+  useEffect(() => {
+    if (user && !profile && !loading) {
+      fetchProfile(user.id);
+    }
+  }, [user, profile, loading]);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const value = { user, profile, loading, signOut };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
