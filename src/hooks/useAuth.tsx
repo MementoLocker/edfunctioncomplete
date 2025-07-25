@@ -32,66 +32,83 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (currentUser: any) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', currentUser.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
-      setProfile(null);
-    } else {
-      setProfile(data);
-    }
-  };
-
-  const initialize = async () => {
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
-
-    if (error) {
-      console.error('Error getting session:', error);
-      setLoading(false);
-      return;
-    }
-
-    const currentUser = session?.user || null;
-    setUser(currentUser);
-
-    if (currentUser) {
-      await fetchProfile(currentUser);
-    } else {
+      if (error) {
+        console.error('Error fetching profile:', error);
+        setProfile(null);
+      } else {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
       setProfile(null);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
-    initialize();
+    let isMounted = true;
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user);
-      } else {
+    const getSessionAndProfile = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          await fetchProfile(currentUser);
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Error in getSessionAndProfile:', err);
         setUser(null);
+        setProfile(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    getSessionAndProfile();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        fetchProfile(currentUser);
+      } else {
         setProfile(null);
       }
     });
 
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const currentUser = session?.user || null;
-        if (currentUser) {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
+          const currentUser = session?.user || null;
           setUser(currentUser);
-          await fetchProfile(currentUser);
+
+          if (currentUser) {
+            await fetchProfile(currentUser);
+          } else {
+            setProfile(null);
+          }
+        } catch (err) {
+          console.error('Error on visibility change:', err);
         }
       }
     };
@@ -99,6 +116,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      isMounted = false;
       listener.subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
