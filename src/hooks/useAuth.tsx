@@ -46,40 +46,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error getting session:', error);
-      }
-      const currentUser = session?.user || null;
-      setUser(currentUser);
+  const initialize = async () => {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
 
-      if (currentUser) {
-        await fetchProfile(currentUser);
-      }
+    if (error) {
+      console.error('Error getting session:', error);
       setLoading(false);
-    };
+      return;
+    }
 
-    init();
+    const currentUser = session?.user || null;
+    setUser(currentUser);
+
+    if (currentUser) {
+      await fetchProfile(currentUser);
+    } else {
+      setProfile(null);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    initialize();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user || null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await fetchProfile(currentUser);
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user);
       } else {
+        setUser(null);
         setProfile(null);
       }
     });
 
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const currentUser = session?.user || null;
+        if (currentUser) {
+          setUser(currentUser);
+          await fetchProfile(currentUser);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       listener.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
