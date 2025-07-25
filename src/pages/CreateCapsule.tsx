@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { v4 as uuidv4 } from 'uuid';
 
 const CreateCapsule = () => {
   const [title, setTitle] = useState('');
@@ -10,7 +9,11 @@ const CreateCapsule = () => {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Load draft if URL has ?draftId=
+  // Generate a unique file ID (no external dependency)
+  const generateId = () =>
+    Date.now().toString() + '-' + Math.random().toString(36).substring(2, 10);
+
+  // Load draft if editing
   useEffect(() => {
     const loadDraft = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -48,7 +51,7 @@ const CreateCapsule = () => {
 
     for (const file of mediaFiles) {
       const fileExt = file.name.split('.').pop();
-      const filePath = `${uuidv4()}.${fileExt}`;
+      const filePath = `${generateId()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('media')
@@ -77,11 +80,10 @@ const CreateCapsule = () => {
     try {
       let allMediaUrls = [...mediaUrls];
 
-      // Only upload new files
       if (mediaFiles.length > 0) {
         const newUrls = await uploadMediaFiles();
         allMediaUrls = [...allMediaUrls, ...newUrls];
-        setMediaUrls(allMediaUrls); // update preview too
+        setMediaUrls(allMediaUrls);
       }
 
       const payload = {
@@ -107,7 +109,7 @@ const CreateCapsule = () => {
           .single();
 
         if (error) throw error;
-        setDraftId(data.id); // Save the draft ID for future updates
+        setDraftId(data.id);
       }
 
       setMediaFiles([]);
