@@ -44,14 +44,6 @@ function App() {
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
-  // Check for new user flag from signup and show welcome modal
-  useEffect(() => {
-    const isNewUser = localStorage.getItem('mementolocker_new_user');
-    if (isNewUser && user) {
-      setShowWelcomeModal(true);
-      localStorage.removeItem('mementolocker_new_user');
-    }
-  }, [user]);
 
   const handleSignIn = () => setAuthModal({ isOpen: true, mode: 'signin' });
   const handleSignUp = () => setAuthModal({ isOpen: true, mode: 'signup' });
@@ -70,6 +62,16 @@ function App() {
     window.location.href = '/#pricing';
   };
 
+  // Check for new user flag from signup and show welcome modal
+  useEffect(() => {
+    if (user && !loading) {
+      const isNewUser = localStorage.getItem('mementolocker_new_user');
+      if (isNewUser) {
+        setShowWelcomeModal(true);
+        localStorage.removeItem('mementolocker_new_user');
+      }
+    }
+  }, [user, loading]);
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
