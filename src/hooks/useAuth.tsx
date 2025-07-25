@@ -1,5 +1,6 @@
-import { useState, useEffect, useContext, createContext } from 'react';
+import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface Profile {
   id: string;
@@ -15,23 +16,25 @@ interface Profile {
 }
 
 interface AuthContextType {
-  user: any;
+  user: User | null;
   profile: Profile | null;
   loading: boolean;
+  signOut: () => Promise<void>; // <-- ADDED THIS LINE
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
+  signOut: async () => {}, // <-- ADDED THIS LINE
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (currentUser: any) => {
+  const fetchProfile = async (currentUser: User) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -122,8 +125,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  // ADDED THIS FUNCTION
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut }}> {/* <-- ADDED signOut HERE */}
       {children}
     </AuthContext.Provider>
   );
