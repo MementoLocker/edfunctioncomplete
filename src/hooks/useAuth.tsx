@@ -30,52 +30,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Phase 1: Get the initial session and profile just once when the app loads.
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const { data: profileData } = await supabase
+    // onAuthStateChange fires immediately with the current session, so it handles all cases.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      // Only clear the profile if the user explicitly signs out.
+      // This prevents the flicker when the tab is re-focused.
+      if (event === 'SIGNED_OUT') {
+        setProfile(null);
+      } else if (currentUser) {
+        // If there's a user, fetch their profile.
+        try {
+          const { data: profileData, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
             .single();
-          setProfile(profileData);
-        }
-      } catch (error) {
-        console.error("Error during initial session fetch:", error);
-      } finally {
-        // This is critical: set loading to false AFTER the initial check is complete.
-        setLoading(false);
-      }
-    };
 
-    getInitialSession();
-
-    // Phase 2: Listen for future changes (user logs in or out in another tab, etc.).
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        
-        if (currentUser) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
+          if (error) throw error;
           setProfile(profileData);
-        } else {
-          // If the user logs out, clear the profile.
+
+        } catch (error) {
+          console.error('Error fetching profile:', error);
           setProfile(null);
         }
       }
-    );
+      
+      // CRITICAL FIX: This was the missing piece.
+      // Ensure loading is set to false after every auth event is handled.
+      setLoading(false);
+    });
 
-    // Cleanup the listener when the component is no longer on screen.
+    // Cleanup the listener when the component unmounts.
     return () => {
       subscription.unsubscribe();
     };
