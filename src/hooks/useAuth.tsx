@@ -30,8 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // --- Phase 1: Initial Load ---
-    // This runs only once to determine the initial auth state when the app first loads.
+    // Phase 1: Get the initial session and profile just once when the app loads.
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -56,21 +55,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     getInitialSession();
 
-    // --- Phase 2: Listen for Future Changes ---
-    // This listener only reacts to explicit sign-in or sign-out events.
-    // It avoids the loop caused by token refreshes on tab focus.
+    // Phase 2: Listen for future changes (user logs in or out in another tab, etc.).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN') {
-          setUser(session!.user);
+      async (_event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        
+        if (currentUser) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session!.user.id)
+            .eq('id', currentUser.id)
             .single();
           setProfile(profileData);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
+        } else {
+          // If the user logs out, clear the profile.
           setProfile(null);
         }
       }
