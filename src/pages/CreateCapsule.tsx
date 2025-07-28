@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '../lib/supabase'; // FIXED: Corrected the import path
 
 const CreateCapsule = ({ user }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -42,7 +42,7 @@ const CreateCapsule = ({ user }) => {
 
         const { error: uploadError } = await supabase
           .storage
-          .from('capsule-media')
+          .from('captules') // FIXED: Corrected bucket name
           .upload(filePath, file, {
             cacheControl: '3600',
             upsert: false,
@@ -54,7 +54,7 @@ const CreateCapsule = ({ user }) => {
 
         const { data: urlData } = supabase
           .storage
-          .from('capsule-media')
+          .from('captules') // FIXED: Corrected bucket name
           .getPublicUrl(filePath);
 
         uploadedMedia.push({
