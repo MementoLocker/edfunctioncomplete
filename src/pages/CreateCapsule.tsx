@@ -1,137 +1,64 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase'; // FIXED: Corrected the import path
+import { supabase } from '../supabaseClient'; // ← Fixed import path
+import { v4 as uuidv4 } from 'uuid';
 
-const CreateCapsule = ({ user }) => {
-  const [mediaFiles, setMediaFiles] = useState([]);
+const CreateCapsule = () => {
+  const [media, setMedia] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('success');
-  const [showToast, setShowToast] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
 
-  const removeFile = (index) => {
-    const updatedFiles = [...mediaFiles];
-    updatedFiles.splice(index, 1);
-    setMediaFiles(updatedFiles);
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setMedia(e.target.files[0]);
+    }
   };
 
-  const handleMediaChange = (e) => {
-    const files = Array.from(e.target.files);
-    const newFiles = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    }));
-    setMediaFiles((prev) => [...prev, ...newFiles]);
-  };
+  const saveDraft = async () => {
+    if (!media) {
+      setStatus('Please select a media file first.');
+      return;
+    }
 
-  const saveAsDraft = async () => {
     try {
       setUploading(true);
-      const uploadedMedia = [];
+      setStatus('Uploading...');
 
-      for (const media of mediaFiles) {
-        if (media.url?.startsWith('https://')) {
-          uploadedMedia.push(media);
-          continue;
-        }
-
-        const file = media.file;
-        const filePath = `drafts/${Date.now()}_${file.name}`;
-
-        const { error: uploadError } = await supabase
-          .storage
-          .from('captules') // FIXED: Corrected bucket name
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(`Upload failed for ${file.name}: ${uploadError.message}`);
-        }
-
-        const { data: urlData } = supabase
-          .storage
-          .from('captules') // FIXED: Corrected bucket name
-          .getPublicUrl(filePath);
-
-        uploadedMedia.push({
-          ...media,
-          url: urlData.publicUrl,
-        });
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        setStatus('User not authenticated.');
+        setUploading(false);
+        return;
       }
 
-      const { error: insertError } = await supabase
-        .from('capsules')
-        .insert({
-          user_id: user?.id,
-          status: 'draft',
-          media: uploadedMedia.map(f => ({
-            url: f.url,
-            type: f.type,
-            name: f.name,
-            size: f.size,
-          })),
-          created_at: new Date().toISOString(),
-        });
+      const fileExt = media.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `drafts/${user.id}/${fileName}`;
 
-      if (insertError) {
-        throw new Error(`Failed to save draft: ${insertError.message}`);
+      const { error: uploadError } = await supabase.storage
+        .from('capsule-media')
+        .upload(filePath, media);
+
+      if (uploadError) {
+        throw uploadError;
       }
 
-      setToastMessage('Draft saved successfully!');
-      setToastType('success');
-      setShowToast(true);
-    } catch (err) {
-      console.error(err);
-      setToastMessage(err.message || 'An error occurred');
-      setToastType('error');
-      setShowToast(true);
+      setStatus('Draft saved successfully!');
+    } catch (error: any) {
+      console.error('Upload error:', error.message);
+      setStatus(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="create-capsule-page">
-      <h1>Create Capsule</h1>
-
-      <input
-        type="file"
-        multiple
-        accept="image/*,video/*"
-        onChange={handleMediaChange}
-      />
-
-      <div className="media-preview">
-        {mediaFiles.map((media, index) => (
-          <div key={index} className="media-thumb">
-            {media.type.startsWith('image') ? (
-              <img src={media.url} alt={media.name} width={100} />
-            ) : (
-              <video src={media.url} controls width={100} />
-            )}
-            <button onClick={() => removeFile(index)}>Remove</button>
-          </div>
-        ))}
-      </div>
-
-      <div className="actions">
-        <button
-          onClick={saveAsDraft}
-          disabled={uploading}
-        >
-          {uploading ? 'Saving...' : 'Save as Draft'}
-        </button>
-      </div>
-
-      {showToast && (
-        <div className={`toast ${toastType}`}>
-          {toastMessage}
-        </div>
-      )}
+    <div>
+      <h1>Create a Capsule</h1>
+      <input type="file" accept="image/*,video/*" onChange={handleMediaChange} />
+      <button onClick={saveDraft} disabled={uploading}>
+        {uploading ? 'Saving...' : 'Save as Draft'}
+      </button>
+      {status && <p>{status}</p>}
     </div>
   );
 };
