@@ -717,10 +717,9 @@ export const CreateCapsule: React.FC = () => {
         }
       }
 
-      const capsuleData = {
       // Upload media files to Supabase Storage first
       const uploadedFiles = [];
-      
+
       for (const mediaFile of mediaFiles) {
         // Skip if file already has storage_path (already uploaded)
         if (mediaFile.storage_path) {
@@ -735,34 +734,35 @@ export const CreateCapsule: React.FC = () => {
           continue;
         }
 
-        // Upload new file
-        const fileExt = mediaFile.file.name.split('.').pop();
-        const fileName = `${user.id}/capsules/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, mediaFile.file);
+        try {
+          const fileExt = mediaFile.file.name.split('.').pop();
+          const fileName = `${user.id}/capsules/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, mediaFile.file);
 
-        if (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          throw new Error(`Failed to upload ${mediaFile.name}`);
-        }
+          if (uploadError) {
+            console.error('Upload error for file:', mediaFile.name, uploadError);
+            throw uploadError;
+          }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(fileName);
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
 
-        uploadedFiles.push({
-          id: mediaFile.id,
-          name: mediaFile.name,
-          type: mediaFile.type,
-          size: mediaFile.size,
-          url: publicUrl,
-          storage_path: fileName
-        });
-      }
+          uploadedFiles.push({
+            id: mediaFile.id,
+            name: mediaFile.name,
+            type: mediaFile.type,
+            size: mediaFile.size,
+            url: publicUrl,
+            storage_path: fileName
+          });
 
+          console.log('Successfully uploaded file:', mediaFile.name, 'to', publicUrl);
+        } catch (fileError) {
+          console.error('Failed to upload file:', mediaFile.name, fileError);
         user_id: user.id,
         title: title.trim(),
         message: message.trim(),
