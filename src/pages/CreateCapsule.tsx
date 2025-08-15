@@ -1,58 +1,82 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, 
   X, 
-  Play, 
-  Pause, 
-  Volume2, 
   Image as ImageIcon, 
-  Music, 
-  FileText,
-  Eye,
-  Calendar,
-  Users,
-  User,
-  Palette,
-  Type,
-  Settings,
-  Crown,
-  GripVertical,
+  Video, 
+  Volume2, 
+  Calendar, 
+  Users, 
+  Type, 
+  Palette, 
+  Play,
   Save,
-  Video
+  Send,
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  Settings,
+  Music,
+  Clock,
+  Shuffle
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ToastNotification } from '../components/ToastNotification';
 import { SlideshowPreview } from '../components/SlideshowPreview';
 import { FileArrangementModal } from '../components/FileArrangementModal';
-import { supabase } from '../lib/supabase';
-import { ToastNotification } from '../components/ToastNotification';
 
 interface MediaFile {
   id: string;
-  file: File;
+  file: File | null;
   type: 'image' | 'video' | 'audio';
   url: string;
   name: string;
   size: number;
+  storage_path?: string;
 }
+
+interface Recipient {
+  name: string;
+  email: string;
+}
+
+const backgroundMusicLibrary = [
+  {
+    id: 'coastal-echoes',
+    title: 'Coastal Echoes',
+    url: 'https://umrxpbudpexhgpnynstb.supabase.co/storage/v1/object/public/avatars//Coastal%20Echoes.mp3',
+    genre: 'Cinematic Score'
+  },
+  {
+    id: 'sad-memory',
+    title: 'Sad Memory',
+    url: 'https://umrxpbudpexhgpnynstb.supabase.co/storage/v1/object/public/avatars//Sad%20Memory.wav',
+    genre: 'Cinematic Score'
+  }
+];
 
 export const CreateCapsule: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editCapsuleId = searchParams.get('edit');
-  
-  // Form state
+
+  // Basic capsule data
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [senderName, setSenderName] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-  const [recipients, setRecipients] = useState([{ name: '', email: '' }]);
+  const [recipients, setRecipients] = useState<Recipient[]>([{ name: '', email: '' }]);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('12:00');
-  
-  // Customization state
+
+  // Media files
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Customization
   const [titleFont, setTitleFont] = useState('Playfair Display, serif');
   const [messageFont, setMessageFont] = useState('Inter, sans-serif');
   const [titleSize, setTitleSize] = useState('text-4xl');
@@ -62,50 +86,43 @@ export const CreateCapsule: React.FC = () => {
   const [gradientDirection, setGradientDirection] = useState('to-b');
   const [secondaryColor, setSecondaryColor] = useState('#F4F6F7');
   const [slideDuration, setSlideDuration] = useState(5);
+  const [transitionEffect, setTransitionEffect] = useState('fade');
+  const [transitionSpeed, setTransitionSpeed] = useState('medium');
   const [backgroundMusic, setBackgroundMusic] = useState<{
     id: string;
     title: string;
     url: string;
     genre: string;
   } | null>(null);
-  const [transitionEffect, setTransitionEffect] = useState('fade');
-  const [transitionSpeed, setTransitionSpeed] = useState('medium');
-  const [showMusicLibrary, setShowMusicLibrary] = useState(false);
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
-  const [customAudioFile, setCustomAudioFile] = useState<File | null>(null);
-  const [customAudioUrl, setCustomAudioUrl] = useState<string | null>(null);
-  
+
   // UI state
-  const [dragActive, setDragActive] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'media' | 'customize' | 'recipients'>('details');
-  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
-  const [showFileArrangement, setShowFileArrangement] = useState(false);
+  const [activeTab, setActiveTab] = useState('content');
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showFileArrangement, setShowFileArrangement] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
-  
-  // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const customAudioInputRef = useRef<HTMLInputElement>(null);
-  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
+  const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
 
-  // Toast helper
-  const triggerToast = (message: string, type: 'success' | 'error' | 'warning') => {
+  const triggerToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
   };
 
-  // Load capsule for editing
+  // Load capsule data if editing
   useEffect(() => {
     if (editCapsuleId && user) {
-      loadCapsuleForEditing(editCapsuleId);
+      loadCapsuleData(editCapsuleId);
     }
   }, [editCapsuleId, user]);
+
+  // Set default sender name when user loads
+  useEffect(() => {
+    if (user && !senderName && !editCapsuleId) {
+      setSenderName(user.user_metadata?.name || user.email?.split('@')[0] || '');
+    }
+  }, [user, senderName, editCapsuleId]);
 
   const loadCapsuleData = async (capsuleId: string) => {
     setLoading(true);
@@ -150,17 +167,15 @@ export const CreateCapsule: React.FC = () => {
 
         // Restore media files from saved data
         if (data.files && Array.isArray(data.files)) {
-          console.log('Loading files from database:', data.files);
           const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
             id: fileData.id || crypto.randomUUID(),
-            file: null as any, // No file object for loaded files
+            file: null as any, // Set to null for loaded files
             type: fileData.type || 'image',
-            url: fileData.url || '', // Use the Supabase Storage URL directly
+            url: fileData.url || '', // Use the stored Supabase URL directly
             name: fileData.name || 'Unknown file',
             size: fileData.size || 0,
             storage_path: fileData.storage_path
           }));
-          console.log('Reconstructed media files:', loadedFiles);
           setMediaFiles(loadedFiles);
         }
 
@@ -174,124 +189,281 @@ export const CreateCapsule: React.FC = () => {
     }
   };
 
-  // Available music tracks from your library
-  const musicLibrary = [
-    {
-      id: 'coastal-echoes',
-      title: 'Coastal Echoes',
-      url: 'https://umrxpbudpexhgpnynstb.supabase.co/storage/v1/object/public/avatars//Coastal%20Echoes.mp3',
-      genre: 'Cinematic Score',
-      description: 'Epic orchestral composition perfect for emotional storytelling'
-    }
-    // Additional tracks would be loaded from your music library API
-  ];
-
-  const transitionEffects = [
-    { id: 'fade', name: 'Fade', description: 'Classic smooth fade in/out' },
-    { id: 'slide', name: 'Slide', description: 'Slide from right to left' },
-    { id: 'slideUp', name: 'Slide Up', description: 'Slide from bottom to top' },
-    { id: 'slideDown', name: 'Slide Down', description: 'Slide from top to bottom' },
-    { id: 'zoom', name: 'Zoom In', description: 'Zoom in from center' },
-    { id: 'zoomOut', name: 'Zoom Out', description: 'Zoom out from center' },
-    { id: 'flipHorizontal', name: 'Flip Horizontal', description: 'Horizontal flip transition' },
-    { id: 'flipVertical', name: 'Flip Vertical', description: 'Vertical flip transition' },
-    { id: 'rotate', name: 'Rotate', description: 'Rotate into view' },
-    { id: 'spiral', name: 'Spiral', description: 'Spiral motion with scaling' },
-    { id: 'blur', name: 'Blur', description: 'Blur transition effect' },
-    { id: 'bounce', name: 'Bounce', description: 'Bouncy spring entrance' },
-    { id: 'elastic', name: 'Elastic', description: 'Elastic spring animation' },
-    { id: 'curtain', name: 'Curtain', description: 'Curtain reveal effect' },
-    { id: 'wave', name: 'Wave', description: 'Wave-like motion' }
-  ];
-
-  const speedOptions = [
-    { id: 'slow', name: 'Slow', description: 'Graceful and deliberate (1.2s)' },
-    { id: 'medium', name: 'Medium', description: 'Balanced and smooth (0.8s)' },
-    { id: 'fast', name: 'Fast', description: 'Quick and fluid (0.5s)' }
-  ];
-
-  // File validation
-  const validateFile = (file: File): string | null => {
-    const maxSize = 5 * 1024 * 1024 * 1024; // 5GB in bytes
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'video/mp4', 'video/webm', 'video/quicktime',
-      'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mpeg'
-    ];
-
-    if (file.size > maxSize) {
-      return 'File size must be less than 5GB';
-    }
-
-    if (!allowedTypes.includes(file.type)) {
-      return 'File type not supported. Please upload images, videos, or audio files.';
-    }
-
-    return null;
-  };
-
-  // Get file type from MIME type
-  const getFileType = (file: File): 'image' | 'video' | 'audio' => {
-    if (file.type.startsWith('image/')) return 'image';
-    if (file.type.startsWith('video/')) return 'video';
-    if (file.type.startsWith('audio/')) return 'audio';
-    return 'image'; // fallback
-  };
-
-  // Handle file upload
-  const handleFileUpload = useCallback(async (files: FileList) => {
-    setUploading(true);
-    const newFiles: MediaFile[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const error = validateFile(file);
-      
-      if (error) {
-        alert(`${file.name}: ${error}`);
-        continue;
+  const handleFileUpload = (files: FileList) => {
+    Array.from(files).forEach(file => {
+      if (file.size > 100 * 1024 * 1024) {
+        triggerToast(`File ${file.name} is too large. Maximum size is 100MB.`, 'error');
+        return;
       }
-      // For new uploads, create object URL. For loaded files, use the stored URL
-      const url = URL.createObjectURL(file);
+
+      const fileType = file.type.startsWith('image/') ? 'image' :
+                     file.type.startsWith('video/') ? 'video' :
+                     file.type.startsWith('audio/') ? 'audio' : null;
+
+      if (!fileType) {
+        triggerToast(`File ${file.name} is not a supported format.`, 'error');
+        return;
+      }
 
       const mediaFile: MediaFile = {
-        id: `${Date.now()}-${i}`,
+        id: crypto.randomUUID(),
         file,
-        type: getFileType(file),
-        url: URL.createObjectURL(file), // Only for newly uploaded files
+        type: fileType,
+        url: URL.createObjectURL(file), // Use blob URL for newly uploaded files
         name: file.name,
         size: file.size
       };
 
-      newFiles.push(mediaFile);
-    }
+      setMediaFiles(prev => [...prev, mediaFile]);
+    });
+  };
 
-    setMediaFiles(prev => [...prev, ...newFiles]);
-    setUploading(false);
-  }, []);
-
-  // Drag and drop handlers
-  const handleDrag = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileUpload(files);
     }
-  }, []);
+  };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const removeFile = (id: string) => {
+    setMediaFiles(prev => {
+      const fileToRemove = prev.find(f => f.id === id);
+      if (fileToRemove?.url && fileToRemove.url.startsWith('blob:')) {
+        URL.revokeObjectURL(fileToRemove.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
+  };
+
+  const addRecipient = () => {
+    setRecipients(prev => [...prev, { name: '', email: '' }]);
+  };
+
+  const removeRecipient = (index: number) => {
+    if (recipients.length > 1) {
+      setRecipients(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateRecipient = (index: number, field: 'name' | 'email', value: string) => {
+    setRecipients(prev => prev.map((recipient, i) => 
+      i === index ? { ...recipient, [field]: value } : recipient
+    ));
+  };
+
+  const uploadMediaFiles = async () => {
+    const uploadedFiles = [];
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileUpload(e.dataTransfer.files);
-    }
-  }, [handleFileUpload]);
+    for (const mediaFile of mediaFiles) {
+      // Skip files that are already uploaded (loaded from database)
+      if (!mediaFile.file || mediaFile.storage_path) {
+        uploadedFiles.push({
+          id: mediaFile.id,
+          type: mediaFile.type,
+          name: mediaFile.name,
+          size: mediaFile.size,
+          url: mediaFile.url, // Use existing URL for already uploaded files
+          storage_path: mediaFile.storage_path
+        });
+        continue;
+      }
 
-  // Check authentication - moved after all hooks
+      try {
+        const fileExt = mediaFile.file.name.split('.').pop();
+        const fileName = `${user?.id}/${crypto.randomUUID()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, mediaFile.file);
+
+        if (uploadError) throw uploadError;
+
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+        uploadedFiles.push({
+          id: mediaFile.id,
+          type: mediaFile.type,
+          name: mediaFile.name,
+          size: mediaFile.size,
+          url: publicUrl, // Use the Supabase public URL
+          storage_path: fileName
+        });
+      } catch (error) {
+        console.error('Error uploading file:', mediaFile.file.name, error);
+        throw new Error(`Failed to upload ${mediaFile.file.name}`);
+      }
+    }
+    
+    return uploadedFiles;
+  };
+
+  const saveDraft = async () => {
+    if (!user) {
+      triggerToast('Please sign in to save your capsule.', 'error');
+      return;
+    }
+
+    if (!title.trim()) {
+      triggerToast('Please enter a title for your time capsule.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const uploadedFiles = await uploadMediaFiles();
+      
+      const capsuleData = {
+        user_id: user.id,
+        title: title.trim(),
+        message: message.trim(),
+        sender_name: senderName.trim(),
+        recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
+        delivery_date: new Date(`${deliveryDate}T${deliveryTime}`).toISOString(),
+        files: uploadedFiles,
+        customization: {
+          titleFont,
+          messageFont,
+          titleSize,
+          messageSize,
+          backgroundColor,
+          backgroundType,
+          gradientDirection,
+          secondaryColor,
+          slideDuration,
+          transitionEffect,
+          transitionSpeed,
+          backgroundMusic
+        },
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      };
+
+      if (editCapsuleId) {
+        // Update existing capsule
+        const { error } = await supabase
+          .from('capsules')
+          .update(capsuleData)
+          .eq('id', editCapsuleId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        triggerToast('Draft updated successfully!', 'success');
+      } else {
+        // Create new capsule
+        const { error } = await supabase
+          .from('capsules')
+          .insert(capsuleData);
+
+        if (error) throw error;
+        triggerToast('Draft saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      triggerToast('Failed to save draft. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendCapsule = async () => {
+    if (!user) {
+      triggerToast('Please sign in to send your capsule.', 'error');
+      return;
+    }
+
+    if (!title.trim() || !message.trim() || !deliveryDate) {
+      triggerToast('Please fill in all required fields.', 'error');
+      return;
+    }
+
+    const validRecipients = recipients.filter(r => r.name.trim() && r.email.trim());
+    if (validRecipients.length === 0) {
+      triggerToast('Please add at least one recipient.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const uploadedFiles = await uploadMediaFiles();
+      
+      const capsuleData = {
+        user_id: user.id,
+        title: title.trim(),
+        message: message.trim(),
+        sender_name: senderName.trim(),
+        recipients: validRecipients,
+        delivery_date: new Date(`${deliveryDate}T${deliveryTime}`).toISOString(),
+        files: uploadedFiles,
+        customization: {
+          titleFont,
+          messageFont,
+          titleSize,
+          messageSize,
+          backgroundColor,
+          backgroundType,
+          gradientDirection,
+          secondaryColor,
+          slideDuration,
+          transitionEffect,
+          transitionSpeed,
+          backgroundMusic
+        },
+        status: 'sealed',
+        updated_at: new Date().toISOString()
+      };
+
+      if (editCapsuleId) {
+        // Update existing capsule
+        const { error } = await supabase
+          .from('capsules')
+          .update(capsuleData)
+          .eq('id', editCapsuleId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        triggerToast('Time capsule updated and ready for delivery!', 'success');
+      } else {
+        // Create new capsule
+        const { error } = await supabase
+          .from('capsules')
+          .insert(capsuleData);
+
+        if (error) throw error;
+        triggerToast('Time capsule sealed and ready for delivery!', 'success');
+      }
+
+      // Redirect to my capsules page after a short delay
+      setTimeout(() => {
+        navigate('/my-capsules');
+      }, 2000);
+    } catch (error) {
+      console.error('Error sending capsule:', error);
+      triggerToast('Failed to send capsule. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileArrangementSave = (reorderedFiles: MediaFile[]) => {
+    setMediaFiles(reorderedFiles);
+    triggerToast('File order updated!', 'success');
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -313,526 +485,9 @@ export const CreateCapsule: React.FC = () => {
     );
   }
 
-  // Remove file
-  const removeFile = (id: string) => {
-    setMediaFiles(prev => {
-      const fileToRemove = prev.find(f => f.id === id);
-      if (fileToRemove) {
-        URL.revokeObjectURL(fileToRemove.url);
-      }
-      return prev.filter(f => f.id !== id);
-    });
-  };
-
-  // Audio playback
-  const toggleAudio = (fileId: string, url: string) => {
-    if (playingAudio === fileId) {
-      audioRefs.current[fileId]?.pause();
-      setPlayingAudio(null);
-    } else {
-      // Stop any currently playing audio
-      Object.values(audioRefs.current).forEach(audio => audio.pause());
-      
-      if (!audioRefs.current[fileId]) {
-        audioRefs.current[fileId] = new Audio(url);
-        audioRefs.current[fileId].addEventListener('ended', () => {
-          setPlayingAudio(null);
-        });
-      }
-      
-      audioRefs.current[fileId].play();
-      setPlayingAudio(fileId);
-    }
-  };
-
-  // Add recipient
-  const addRecipient = () => {
-    setRecipients(prev => [...prev, { name: '', email: '' }]);
-  };
-
-  // Remove recipient
-  const removeRecipient = (index: number) => {
-    setRecipients(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Update recipient
-  const updateRecipient = (index: number, field: 'name' | 'email', value: string) => {
-    setRecipients(prev => prev.map((recipient, i) => 
-      i === index ? { ...recipient, [field]: value } : recipient
-    ));
-  };
-
-  // Format file size
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Get background style for preview
-  const getBackgroundStyle = () => {
-    if (backgroundType === 'gradient') {
-      if (gradientDirection === 'radial') {
-        return {
-          background: `radial-gradient(circle, ${backgroundColor}, ${secondaryColor})`
-        };
-      } else {
-        const directionMap: { [key: string]: string } = {
-          'to-b': 'to bottom',
-          'to-r': 'to right',
-          'to-br': 'to bottom right', 
-          'to-bl': 'to bottom left'
-        };
-        const direction = directionMap[gradientDirection] || 'to bottom';
-        return {
-          background: `linear-gradient(${direction}, ${backgroundColor}, ${secondaryColor})`
-        };
-      }
-    }
-    return { backgroundColor };
-  };
-
-  const toggleMusicPlayback = (track: typeof musicLibrary[0]) => {
-    if (currentlyPlaying === track.id) {
-      // Stop current track
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-      }
-      setCurrentlyPlaying(null);
-    } else {
-      // Stop any currently playing track
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-      }
-      
-      // Start new track
-      const audio = new Audio(track.url);
-      audio.addEventListener('ended', () => setCurrentlyPlaying(null));
-      audio.addEventListener('error', (e) => {
-        console.error('Audio playback error:', e);
-        setCurrentlyPlaying(null);
-      });
-      
-      audio.play().then(() => {
-        setCurrentlyPlaying(track.id);
-        setAudioElement(audio);
-      }).catch((error) => {
-        console.error('Playback failed:', error);
-        setCurrentlyPlaying(null);
-      });
-    }
-  };
-
-  const selectBackgroundMusic = (track: typeof musicLibrary[0]) => {
-    setBackgroundMusic(track);
-    setShowMusicLibrary(false);
-    // Stop any currently playing preview
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-    }
-    setCurrentlyPlaying(null);
-  };
-
-  const removeBackgroundMusic = () => {
-    setBackgroundMusic(null);
-    // Clean up custom audio
-    if (customAudioUrl) {
-      URL.revokeObjectURL(customAudioUrl);
-      setCustomAudioUrl(null);
-    }
-    setCustomAudioFile(null);
-    // Stop any currently playing music
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-    }
-    setCurrentlyPlaying(null);
-  };
-
-  // Handle custom audio upload
-  const handleCustomAudioUpload = (file: File) => {
-    // Validate file type
-    const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mpeg', 'audio/m4a'];
-    if (!allowedTypes.includes(file.type)) {
-      alert('Please upload an audio file (MP3, WAV, OGG, M4A)');
-      return;
-    }
-
-    // Validate file size (50MB limit)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-      alert('Audio file must be less than 50MB');
-      return;
-    }
-
-    // Clean up previous custom audio
-    if (customAudioUrl) {
-      URL.revokeObjectURL(customAudioUrl);
-    }
-
-    // Create object URL and set as background music
-    const url = URL.createObjectURL(file);
-    setCustomAudioFile(file);
-    setCustomAudioUrl(url);
-    
-    // Set as background music
-    setBackgroundMusic({
-      id: `custom-${Date.now()}`,
-      title: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
-      url: url,
-      genre: 'Custom Upload'
-    });
-  };
-
-  // Handle file arrangement save
-  const handleFileArrangementSave = (reorderedFiles: MediaFile[]) => {
-    setMediaFiles(reorderedFiles);
-    setShowFileArrangement(false);
-  };
-
-  const uploadMediaFiles = async (files: MediaFile[]) => {
-    const uploadedFiles = [];
-    
-    for (const mediaFile of files) {
-      // Skip files that are already uploaded (have storage_path or no file object)
-      if (mediaFile.storage_path || !mediaFile.file) {
-        const fileExt = mediaFile.file.name.split('.').pop() || 'bin';
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(2, 15);
-        const fileName = `${user?.id}/capsules/${timestamp}-${randomId}.${fileExt}`;
-        
-        console.log('Uploading file:', fileName, 'Size:', mediaFile.file.size);
-        // Upload to Supabase Storage - use the correct bucket name
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('captules')
-          .upload(fileName, mediaFile.file);
-
-        if (uploadError) {
-          console.error('Upload error for file:', fileName, uploadError);
-          throw uploadError;
-        }
-
-        console.log('Upload successful:', uploadData);
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('captules')
-          .getPublicUrl(fileName);
-
-        console.log('Public URL generated:', publicUrl);
-        
-        uploadedFiles.push({
-          id: mediaFile.id,
-          name: mediaFile.file.name,
-          type: mediaFile.type,
-          url: publicUrl, // Store the Supabase public URL
-          size: mediaFile.file.size,
-          storage_path: fileName
-        });
-      } catch (error) {
-        console.error('Error uploading file:', mediaFile.file.name, error);
-        throw new Error(`Failed to upload ${mediaFile.file.name}`);
-      }
-    }
-    
-    return uploadedFiles;
-  };
-
-  // Handle form submission
-  const handleSubmit = async (saveAsDraft = false) => {
-    if (!saveAsDraft) {
-      // Full validation for final submission
-      if (!title.trim()) {
-        alert('Please enter a title for your time capsule');
-        return;
-      }
-      
-      if (!senderName.trim()) {
-        alert('Please enter a sender name');
-        return;
-      }
-
-      if (!deliveryDate) {
-        alert('Please select a delivery date');
-        return;
-      }
-
-      if (recipients.some(r => !r.name.trim() || !r.email.trim())) {
-        alert('Please fill in all recipient information');
-        return;
-      }
-    } else {
-      // Minimal validation for draft
-      if (!title.trim()) {
-        triggerToast('Please enter a title to save as draft', 'warning');
-        return;
-      }
-    }
-
-    setLoading(true);
-    try {
-      // Upload media files to Supabase Storage
-      const uploadedFiles = await uploadMediaFiles(mediaFiles);
-
-      // Prepare delivery date
-      let finalDeliveryDate = deliveryDate;
-      if (!finalDeliveryDate && saveAsDraft) {
-        // Set default delivery date to 30 days from now for drafts
-        const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() + 30);
-        finalDeliveryDate = defaultDate.toISOString().split('T')[0];
-      }
-
-      // Combine date and time
-      const deliveryDateTime = new Date(`${finalDeliveryDate}T${deliveryTime}`);
-      console.log('Starting draft save process...');
-      
-
-      // Filter out empty recipients for drafts
-      const validRecipients = saveAsDraft 
-        ? recipients.filter(r => r.name.trim() || r.email.trim())
-        : recipients;
-      
-      // Simplified data structure for debugging
-      const capsuleData = {
-        title: title.trim(),
-        message: message.trim() || null,
-        recipients: validRecipients,
-        delivery_date: `${finalDeliveryDate}T${deliveryTime}:00.000Z`,
-        files: uploadedFiles,
-        customization: {
-          senderName: senderName.trim() || null,
-          titleFont,
-          messageFont,
-          titleSize,
-          messageSize,
-          backgroundColor,
-          backgroundType,
-          gradientDirection,
-          secondaryColor,
-          slideDuration,
-          transitionEffect,
-          transitionSpeed,
-          backgroundMusic
-        }
-      };
-
-      let result;
-      const isEditing = !!editCapsuleId;
-      if (isEditing) {
-        result = await supabase
-          .from('capsules')
-          .update(capsuleData)
-          .eq('id', editCapsuleId);
-      } else {
-        result = await supabase
-          .from('capsules')
-          .insert({ ...capsuleData, user_id: user.id });
-      }
-
-      if (result.error) {
-        console.error('Database error:', result.error);
-        throw result.error;
-      }
-
-      if (saveAsDraft) {
-        triggerToast('Draft saved successfully!', 'success');
-        setTimeout(() => {
-          navigate('/my-capsules');
-        }, 2000);
-      } else {
-        triggerToast('Time capsule saved successfully!', 'success');
-        setTimeout(() => {
-          navigate('/my-capsules');
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error saving capsule:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      triggerToast(`Failed to save: ${errorMessage}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveAsDraft = () => {
-    handleSubmit(true);
-  };
-
-  const handleFinalSubmit = () => {
-    handleSubmit(false);
-  };
-
-  const handleSaveDraft = async () => {
-    if (!user || !title.trim()) {
-      triggerToast('Please enter a title for your time capsule', 'error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      console.log('Starting draft save with media files:', mediaFiles.length);
-      
-      // Upload media files first
-      const uploadedFiles = await uploadMediaFiles(mediaFiles);
-      console.log('Uploaded files result:', uploadedFiles);
-
-      const capsuleData = {
-        user_id: user.id,
-        title: title.trim(),
-        message: message.trim(),
-        recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
-        delivery_date: deliveryDate,
-        files: uploadedFiles.map(file => ({
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          url: file.url,
-          size: file.size,
-          storage_path: file.storage_path
-        })),
-        customization: {
-          titleFont,
-          messageFont,
-          titleSize,
-          messageSize,
-          backgroundColor,
-          backgroundType,
-          gradientDirection,
-          secondaryColor,
-          slideDuration,
-          transitionEffect,
-          transitionSpeed,
-          backgroundMusic
-        },
-        status: 'draft'
-      };
-
-      console.log('Saving capsule data:', capsuleData);
-      
-      const isEditing = !!editCapsuleId;
-      if (isEditing && editCapsuleId) {
-        const { error } = await supabase
-          .from('capsules')
-          .update(capsuleData)
-          .eq('id', editCapsuleId);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('capsules')
-          .insert(capsuleData);
-        
-        if (error) throw error;
-      }
-
-      triggerToast('Draft saved successfully!', 'success');
-      setTimeout(() => navigate('/my-capsules'), 1500);
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      triggerToast('Failed to save draft. Please try again.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCapsuleForEditing = async (capsuleId: string) => {
-    try {
-      console.log('Loading capsule for editing:', capsuleId);
-      
-      const { data, error } = await supabase
-        .from('capsules')
-        .select('*')
-        .eq('id', capsuleId)
-        .single();
-
-      if (error) throw error;
-      if (!data) return;
-
-      console.log('Loaded capsule data:', data);
-      
-      // Load basic fields
-      setTitle(data.title || '');
-      setMessage(data.message || '');
-      setRecipients(data.recipients || [{ name: '', email: '' }]);
-      setDeliveryDate(data.delivery_date ? new Date(data.delivery_date).toISOString().split('T')[0] : '');
-
-      // Load customization
-      const customization = data.customization || {};
-      setTitleFont(customization.titleFont || 'Playfair Display, serif');
-      setMessageFont(customization.messageFont || 'Inter, sans-serif');
-      setTitleSize(customization.titleSize || 'text-4xl');
-      setMessageSize(customization.messageSize || 'text-lg');
-      setBackgroundColor(customization.backgroundColor || '#FFFFFF');
-      setBackgroundType(customization.backgroundType || 'solid');
-      setGradientDirection(customization.gradientDirection || 'to-b');
-      setSecondaryColor(customization.secondaryColor || '#F3F4F6');
-      setTransitionEffect(customization.transitionEffect || 'fade');
-      setTransitionSpeed(customization.transitionSpeed || 'medium');
-      setSlideDuration(customization.slideDuration || 5000);
-      setBackgroundMusic(customization.backgroundMusic || null);
-
-      // Load media files
-      let filesData = data.files;
-      if (typeof filesData === 'string') {
-        try {
-          filesData = JSON.parse(filesData);
-        } catch (e) {
-          console.error('Error parsing files JSON:', e);
-          filesData = [];
-        }
-      }
-      
-      if (data.files && Array.isArray(data.files)) {
-        console.log('Loading files from database:', data.files);
-        console.log('Loading media files from database:', data.files);
-        
-        const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
-          id: fileData.id || crypto.randomUUID(),
-          file: null as any, // We don't have the original file when loading from database
-          type: fileData.type || 'image',
-          url: fileData.url || '',
-          name: fileData.name || 'Unknown file',
-          size: fileData.size || 0,
-          storage_path: fileData.storage_path
-        }));
-        console.log('Converted to MediaFile objects:', loadedFiles);
-        
-        console.log('Loaded media files:', loadedFiles);
-        setMediaFiles(loadedFiles);
-      }
-    } catch (error) {
-      console.error('Error loading capsule:', error);
-      triggerToast('Failed to load capsule for editing', 'error');
-    }
-  };
-
-  if (loading && editCapsuleId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 mb-4" style={{ borderColor: '#C0A172' }}></div>
-          <p className="text-gray-600">Loading your time capsule...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const tabs = [
-    { id: 'details', label: 'Details', icon: FileText },
-    { id: 'media', label: 'Media', icon: ImageIcon },
-    { id: 'arrange', label: 'Arrange Files', icon: GripVertical },
-    { id: 'customize', label: 'Customize', icon: Palette },
-    { id: 'recipients', label: 'Recipients', icon: Users }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -841,53 +496,58 @@ export const CreateCapsule: React.FC = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl lg:text-5xl font-bold gradient-text mb-4">
-            {editCapsuleId ? 'Edit Your Time Capsule' : 'Create Your Time Capsule'}
+            {editCapsuleId ? 'Edit Time Capsule' : 'Create Time Capsule'}
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             {editCapsuleId 
-              ? 'Make changes to your time capsule and save your updates.'
-              : 'Preserve your precious memories and schedule them to be delivered at the perfect moment.'
+              ? 'Update your time capsule with new content or changes.'
+              : 'Preserve your precious memories and schedule them for future delivery.'
             }
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Form */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
-              <div className="flex space-x-2">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-md text-sm font-medium transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                    }`}
-                    style={activeTab === tab.id ? { backgroundColor: '#C0A172', color: 'white' } : {}}
-                  >
-                    <tab.icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          <div className="create-capsule-nav lg:flex lg:justify-center lg:space-x-8 lg:p-4">
+            {[
+              { id: 'content', label: 'Content', icon: Type },
+              { id: 'media', label: 'Media', icon: ImageIcon },
+              { id: 'recipients', label: 'Recipients', icon: Users },
+              { id: 'schedule', label: 'Schedule', icon: Calendar },
+              { id: 'customize', label: 'Customize', icon: Palette },
+              { id: 'preview', label: 'Preview', icon: Eye }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`nav-button ${activeTab === tab.id ? 'active' : ''} flex items-center space-x-2`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-            {/* Tab Content */}
+        {/* Tab Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-              {/* Details Tab */}
-              {activeTab === 'details' && (
-                <div className="space-y-6">
+              {/* Content Tab */}
+              {activeTab === 'content' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
                   <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                    Capsule Details
+                    Capsule Content
                   </h2>
 
-                  {/* Title */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Title *
+                      Capsule Title *
                     </label>
                     <input
                       type="text"
@@ -895,57 +555,211 @@ export const CreateCapsule: React.FC = () => {
                       onChange={(e) => setTitle(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                       placeholder="Give your time capsule a meaningful title..."
-                      maxLength={100}
                       required
                     />
-                    <div className="text-right text-sm text-gray-500 mt-1">
-                      {title.length}/100
-                    </div>
                   </div>
 
-                  {/* Sender Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <User className="w-4 h-4 inline mr-2" />
-                      From (Sender Name) *
+                      Your Message *
+                    </label>
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      rows={8}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      placeholder="Write your heartfelt message to be delivered in the future..."
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      From (Your Name) *
                     </label>
                     <input
                       type="text"
                       value={senderName}
                       onChange={(e) => setSenderName(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      placeholder="e.g., Mom & Dad, Your Family, Grandpa Joe..."
-                      maxLength={50}
+                      placeholder="Your name as it will appear to recipients..."
                       required
                     />
-                    <div className="text-right text-sm text-gray-500 mt-1">
-                      {senderName.length}/50
-                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Media Tab */}
+              {activeTab === 'media' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-gray-800">
+                      Media Files
+                    </h2>
+                    {mediaFiles.length > 1 && (
+                      <button
+                        onClick={() => setShowFileArrangement(true)}
+                        className="btn-outline flex items-center space-x-2"
+                      >
+                        <Shuffle className="w-4 h-4" />
+                        <span>Arrange Files</span>
+                      </button>
+                    )}
                   </div>
 
-                  {/* Message */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Personal Message
-                    </label>
-                    <textarea
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      rows={6}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
-                      placeholder="Write a heartfelt message to accompany your memories..."
-                      maxLength={2000}
+                  {/* File Upload Area */}
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragging 
+                        ? 'border-amber-500 bg-amber-50' 
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">
+                      Upload Your Media
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      Drag and drop files here, or click to browse
+                    </p>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*,audio/*"
+                      onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                      className="hidden"
+                      id="file-upload"
                     />
-                    <div className="text-right text-sm text-gray-500 mt-1">
-                      {message.length}/2000
-                    </div>
+                    <label
+                      htmlFor="file-upload"
+                      className="btn-primary cursor-pointer inline-block"
+                    >
+                      Choose Files
+                    </label>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Supports images, videos, and audio files (max 100MB each)
+                    </p>
                   </div>
 
-                  {/* Delivery Date & Time */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Uploaded Files */}
+                  {mediaFiles.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-700 mb-4">
+                        Uploaded Media ({mediaFiles.length})
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {mediaFiles.map((file) => (
+                          <div key={file.id} className="relative group">
+                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                              {file.type === 'image' ? (
+                                <img
+                                  src={file.url}
+                                  alt={file.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : file.type === 'video' ? (
+                                <video
+                                  src={file.url}
+                                  className="w-full h-full object-cover"
+                                  muted
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Volume2 className="w-8 h-8 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => removeFile(file.id)}
+                              className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                            <p className="text-xs text-gray-500 mt-2 truncate">
+                              {file.name}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Recipients Tab */}
+              {activeTab === 'recipients' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                    Recipients
+                  </h2>
+
+                  <div className="space-y-4">
+                    {recipients.map((recipient, index) => (
+                      <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <input
+                            type="text"
+                            value={recipient.name}
+                            onChange={(e) => updateRecipient(index, 'name', e.target.value)}
+                            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            placeholder="Recipient name"
+                            required
+                          />
+                          <input
+                            type="email"
+                            value={recipient.email}
+                            onChange={(e) => updateRecipient(index, 'email', e.target.value)}
+                            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            placeholder="Recipient email"
+                            required
+                          />
+                        </div>
+                        {recipients.length > 1 && (
+                          <button
+                            onClick={() => removeRecipient(index)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={addRecipient}
+                    className="btn-outline w-full py-3"
+                  >
+                    Add Another Recipient
+                  </button>
+                </motion.div>
+              )}
+
+              {/* Schedule Tab */}
+              {activeTab === 'schedule' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                    Delivery Schedule
+                  </h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Calendar className="w-4 h-4 inline mr-2" />
                         Delivery Date *
                       </label>
                       <input
@@ -957,6 +771,7 @@ export const CreateCapsule: React.FC = () => {
                         required
                       />
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Delivery Time
@@ -969,195 +784,36 @@ export const CreateCapsule: React.FC = () => {
                       />
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Media Tab */}
-              {activeTab === 'media' && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                    Upload Media
-                  </h2>
-
-                  {/* Upload Area */}
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                      dragActive
-                        ? 'border-amber-500 bg-amber-50'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-800 mb-2">
-                      Upload your memories
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="font-medium text-blue-800 mb-2">
+                      📅 Scheduling Tips
                     </h3>
-                    <p className="text-gray-600 mb-4">
-                      Drag and drop files here, or click to browse
-                    </p>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="btn-primary"
-                      disabled={uploading}
-                    >
-                      {uploading ? 'Uploading...' : 'Choose Files'}
-                    </button>
-                    <p className="text-sm text-gray-500 mt-4">
-                      Supports images, videos, and audio files • Max file size: 5GB per file
-                    </p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept="image/*,video/*,audio/*"
-                      onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
-                      className="hidden"
-                    />
+                    <ul className="text-blue-700 text-sm space-y-1">
+                      <li>• Choose meaningful dates like birthdays, anniversaries, or graduations</li>
+                      <li>• Consider time zones when setting delivery time</li>
+                      <li>• You can modify the date later with our Advanced Scheduling feature</li>
+                    </ul>
                   </div>
-
-                  {/* Uploaded Files */}
-                  {mediaFiles.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-gray-800">
-                          Uploaded Media ({mediaFiles.length})
-                        </h3>
-                        <button
-                          onClick={() => setActiveTab('arrange')}
-                          className="btn-secondary text-sm py-2 px-4 flex items-center space-x-2"
-                        >
-                          <GripVertical className="w-4 h-4" />
-                          <span>Arrange Files</span>
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {mediaFiles.map((file) => (
-                          <div key={file.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                {file.type === 'image' && <ImageIcon className="w-5 h-5 text-blue-500" />}
-                                {file.type === 'video' && <Video className="w-5 h-5 text-green-500" />}
-                                {file.type === 'audio' && <Music className="w-5 h-5 text-purple-500" />}
-                                <div>
-                                  <p className="font-medium text-gray-800 text-sm truncate max-w-[200px]">
-                                    {file.name}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {formatFileSize(file.size)}
-                                  </p>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => removeFile(file.id)}
-                                className="text-red-500 hover:text-red-700 transition-colors"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-
-                            {/* Media Preview */}
-                            <div className="bg-gray-50 rounded-lg overflow-hidden">
-                              {file.type === 'image' && (
-                                <img
-                                  src={file.url}
-                                  alt={file.name}
-                                  className="w-full h-48 object-contain"
-                                />
-                              )}
-                              {file.type === 'video' && (
-                                <video
-                                  src={file.url}
-                                  className="w-full h-48 object-contain"
-                                  controls
-                                />
-                              )}
-                              {file.type === 'audio' && (
-                                <div className="h-48 flex flex-col items-center justify-center">
-                                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                                    <Music className="w-8 h-8 text-purple-600" />
-                                  </div>
-                                  <button
-                                    onClick={() => toggleAudio(file.id, file.url)}
-                                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                                  >
-                                    {playingAudio === file.id ? (
-                                      <>
-                                        <Pause className="w-4 h-4" />
-                                        <span>Pause</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Play className="w-4 h-4" />
-                                        <span>Play</span>
-                                      </>
-                                    )}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Arrange Files Tab */}
-              {activeTab === 'arrange' && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                    Arrange Files for Slideshow
-                  </h2>
-                  
-                  {mediaFiles.length === 0 ? (
-                    <div className="text-center py-12">
-                      <GripVertical className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-600 mb-2">
-                        No files uploaded yet
-                      </h3>
-                      <p className="text-gray-500 mb-6">
-                        Upload some media files first to arrange their order
-                      </p>
-                      <button
-                        onClick={() => setActiveTab('media')}
-                        className="btn-primary"
-                      >
-                        Upload Files
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-gray-600 mb-6">
-                        This is the order your files will appear in the slideshow. The file arrangement will be opened in a modal for better organization.
-                      </p>
-                      <button
-                        onClick={() => setShowFileArrangement(true)}
-                        className="btn-primary flex items-center space-x-2"
-                      >
-                        <GripVertical className="w-5 h-5" />
-                        <span>Open File Arrangement</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                </motion.div>
               )}
 
               {/* Customize Tab */}
               {activeTab === 'customize' && (
-                <div className="space-y-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-8"
+                >
                   <h2 className="text-2xl font-bold text-gray-800 mb-6">
                     Customize Appearance
                   </h2>
 
                   {/* Typography */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-800">Typography</h3>
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800">Typography</h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Title Font
@@ -1165,125 +821,14 @@ export const CreateCapsule: React.FC = () => {
                         <select
                           value={titleFont}
                           onChange={(e) => setTitleFont(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-select"
                         >
-                          {/* Serif Fonts */}
-                          <optgroup label="Serif Fonts">
-                            <option value="Playfair Display, serif">Playfair Display (Elegant)</option>
-                            <option value="Merriweather, serif">Merriweather</option>
-                            <option value="Crimson Text, serif">Crimson Text</option>
-                            <option value="Libre Baskerville, serif">Libre Baskerville</option>
-                            <option value="Lora, serif">Lora</option>
-                            <option value="Cormorant Garamond, serif">Cormorant Garamond</option>
-                            <option value="EB Garamond, serif">EB Garamond</option>
-                            <option value="Spectral, serif">Spectral</option>
-                            <option value="Vollkorn, serif">Vollkorn</option>
-                            <option value="Alegreya, serif">Alegreya</option>
-                            <option value="Cardo, serif">Cardo</option>
-                            <option value="Gentium Plus, serif">Gentium Plus</option>
-                            <option value="Neuton, serif">Neuton</option>
-                            <option value="Old Standard TT, serif">Old Standard TT</option>
-                            <option value="PT Serif, serif">PT Serif</option>
-                            <option value="Rokkitt, serif">Rokkitt</option>
-                            <option value="Source Serif Pro, serif">Source Serif Pro</option>
-                            <option value="Tinos, serif">Tinos</option>
-                            <option value="Bitter, serif">Bitter</option>
-                            <option value="Domine, serif">Domine</option>
-                            <option value="Arvo, serif">Arvo</option>
-                            <option value="Zilla Slab, serif">Zilla Slab</option>
-                            <option value="Abril Fatface, serif">Abril Fatface</option>
-                            <option value="Cinzel, serif">Cinzel</option>
-                            <option value="Trajan Pro, serif">Trajan Pro</option>
-                            <option value="Times New Roman, serif">Times New Roman</option>
-                            <option value="Georgia, serif">Georgia</option>
-                            <option value="Book Antiqua, serif">Book Antiqua</option>
-                            <option value="Palatino, serif">Palatino</option>
-                            <option value="Garamond, serif">Garamond</option>
-                          </optgroup>
-                          
-                          {/* Sans-Serif Fonts */}
-                          <optgroup label="Sans-Serif Fonts">
-                            <option value="Inter, sans-serif">Inter (Modern)</option>
-                            <option value="Roboto, sans-serif">Roboto</option>
-                            <option value="Open Sans, sans-serif">Open Sans</option>
-                            <option value="Lato, sans-serif">Lato</option>
-                            <option value="Montserrat, sans-serif">Montserrat</option>
-                            <option value="Source Sans Pro, sans-serif">Source Sans Pro</option>
-                            <option value="Nunito, sans-serif">Nunito</option>
-                            <option value="Poppins, sans-serif">Poppins</option>
-                            <option value="Raleway, sans-serif">Raleway</option>
-                            <option value="Ubuntu, sans-serif">Ubuntu</option>
-                            <option value="Work Sans, sans-serif">Work Sans</option>
-                            <option value="Fira Sans, sans-serif">Fira Sans</option>
-                            <option value="Noto Sans, sans-serif">Noto Sans</option>
-                            <option value="PT Sans, sans-serif">PT Sans</option>
-                            <option value="Oxygen, sans-serif">Oxygen</option>
-                            <option value="Muli, sans-serif">Muli</option>
-                            <option value="Rubik, sans-serif">Rubik</option>
-                            <option value="Karla, sans-serif">Karla</option>
-                            <option value="Barlow, sans-serif">Barlow</option>
-                            <option value="DM Sans, sans-serif">DM Sans</option>
-                            <option value="Manrope, sans-serif">Manrope</option>
-                            <option value="Hind, sans-serif">Hind</option>
-                            <option value="Cabin, sans-serif">Cabin</option>
-                            <option value="Quicksand, sans-serif">Quicksand</option>
-                            <option value="Varela Round, sans-serif">Varela Round</option>
-                            <option value="Comfortaa, sans-serif">Comfortaa</option>
-                            <option value="Josefin Sans, sans-serif">Josefin Sans</option>
-                            <option value="Catamaran, sans-serif">Catamaran</option>
-                            <option value="Exo 2, sans-serif">Exo 2</option>
-                            <option value="Mukti, sans-serif">Mukti</option>
-                            <option value="Asap, sans-serif">Asap</option>
-                            <option value="Titillium Web, sans-serif">Titillium Web</option>
-                            <option value="Dosis, sans-serif">Dosis</option>
-                            <option value="Abel, sans-serif">Abel</option>
-                            <option value="Archivo, sans-serif">Archivo</option>
-                            <option value="Overpass, sans-serif">Overpass</option>
-                            <option value="Helvetica, sans-serif">Helvetica</option>
-                            <option value="Arial, sans-serif">Arial</option>
-                            <option value="Verdana, sans-serif">Verdana</option>
-                            <option value="Tahoma, sans-serif">Tahoma</option>
-                            <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                            <option value="Calibri, sans-serif">Calibri</option>
-                          </optgroup>
-                          
-                          {/* Display Fonts */}
-                          <optgroup label="Display Fonts">
-                            <option value="Oswald, sans-serif">Oswald</option>
-                            <option value="Bebas Neue, sans-serif">Bebas Neue</option>
-                            <option value="Anton, sans-serif">Anton</option>
-                            <option value="Fjalla One, sans-serif">Fjalla One</option>
-                            <option value="Righteous, sans-serif">Righteous</option>
-                            <option value="Fredoka One, sans-serif">Fredoka One</option>
-                            <option value="Bangers, sans-serif">Bangers</option>
-                            <option value="Bungee, sans-serif">Bungee</option>
-                            <option value="Lobster, sans-serif">Lobster</option>
-                            <option value="Pacifico, sans-serif">Pacifico</option>
-                            <option value="Dancing Script, cursive">Dancing Script</option>
-                            <option value="Great Vibes, cursive">Great Vibes</option>
-                            <option value="Satisfy, cursive">Satisfy</option>
-                            <option value="Kaushan Script, cursive">Kaushan Script</option>
-                            <option value="Amatic SC, sans-serif">Amatic SC</option>
-                            <option value="Caveat, cursive">Caveat</option>
-                            <option value="Shadows Into Light, cursive">Shadows Into Light</option>
-                            <option value="Permanent Marker, cursive">Permanent Marker</option>
-                            <option value="Indie Flower, cursive">Indie Flower</option>
-                            <option value="Handlee, cursive">Handlee</option>
-                          </optgroup>
-                          
-                          {/* Monospace Fonts */}
-                          <optgroup label="Monospace Fonts">
-                            <option value="Fira Code, monospace">Fira Code</option>
-                            <option value="Source Code Pro, monospace">Source Code Pro</option>
-                            <option value="JetBrains Mono, monospace">JetBrains Mono</option>
-                            <option value="Roboto Mono, monospace">Roboto Mono</option>
-                            <option value="Space Mono, monospace">Space Mono</option>
-                            <option value="Inconsolata, monospace">Inconsolata</option>
-                            <option value="Ubuntu Mono, monospace">Ubuntu Mono</option>
-                            <option value="Courier New, monospace">Courier New</option>
-                            <option value="Monaco, monospace">Monaco</option>
-                            <option value="Consolas, monospace">Consolas</option>
-                          </optgroup>
+                          <option value="Playfair Display, serif" className="font-preview-playfair">Playfair Display</option>
+                          <option value="Inter, sans-serif" className="font-preview-inter">Inter</option>
+                          <option value="Lora, serif" className="font-preview-lora">Lora</option>
+                          <option value="Montserrat, sans-serif" className="font-preview-montserrat">Montserrat</option>
+                          <option value="Roboto, sans-serif" className="font-preview-roboto">Roboto</option>
+                          <option value="Open Sans, sans-serif" className="font-preview-opensans">Open Sans</option>
                         </select>
                       </div>
 
@@ -1294,125 +839,14 @@ export const CreateCapsule: React.FC = () => {
                         <select
                           value={messageFont}
                           onChange={(e) => setMessageFont(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-select"
                         >
-                          {/* Serif Fonts */}
-                          <optgroup label="Serif Fonts">
-                            <option value="Playfair Display, serif">Playfair Display (Elegant)</option>
-                            <option value="Merriweather, serif">Merriweather</option>
-                            <option value="Crimson Text, serif">Crimson Text</option>
-                            <option value="Libre Baskerville, serif">Libre Baskerville</option>
-                            <option value="Lora, serif">Lora</option>
-                            <option value="Cormorant Garamond, serif">Cormorant Garamond</option>
-                            <option value="EB Garamond, serif">EB Garamond</option>
-                            <option value="Spectral, serif">Spectral</option>
-                            <option value="Vollkorn, serif">Vollkorn</option>
-                            <option value="Alegreya, serif">Alegreya</option>
-                            <option value="Cardo, serif">Cardo</option>
-                            <option value="Gentium Plus, serif">Gentium Plus</option>
-                            <option value="Neuton, serif">Neuton</option>
-                            <option value="Old Standard TT, serif">Old Standard TT</option>
-                            <option value="PT Serif, serif">PT Serif</option>
-                            <option value="Rokkitt, serif">Rokkitt</option>
-                            <option value="Source Serif Pro, serif">Source Serif Pro</option>
-                            <option value="Tinos, serif">Tinos</option>
-                            <option value="Bitter, serif">Bitter</option>
-                            <option value="Domine, serif">Domine</option>
-                            <option value="Arvo, serif">Arvo</option>
-                            <option value="Zilla Slab, serif">Zilla Slab</option>
-                            <option value="Abril Fatface, serif">Abril Fatface</option>
-                            <option value="Cinzel, serif">Cinzel</option>
-                            <option value="Trajan Pro, serif">Trajan Pro</option>
-                            <option value="Times New Roman, serif">Times New Roman</option>
-                            <option value="Georgia, serif">Georgia</option>
-                            <option value="Book Antiqua, serif">Book Antiqua</option>
-                            <option value="Palatino, serif">Palatino</option>
-                            <option value="Garamond, serif">Garamond</option>
-                          </optgroup>
-                          
-                          {/* Sans-Serif Fonts */}
-                          <optgroup label="Sans-Serif Fonts">
-                            <option value="Inter, sans-serif">Inter (Modern)</option>
-                            <option value="Roboto, sans-serif">Roboto</option>
-                            <option value="Open Sans, sans-serif">Open Sans</option>
-                            <option value="Lato, sans-serif">Lato</option>
-                            <option value="Montserrat, sans-serif">Montserrat</option>
-                            <option value="Source Sans Pro, sans-serif">Source Sans Pro</option>
-                            <option value="Nunito, sans-serif">Nunito</option>
-                            <option value="Poppins, sans-serif">Poppins</option>
-                            <option value="Raleway, sans-serif">Raleway</option>
-                            <option value="Ubuntu, sans-serif">Ubuntu</option>
-                            <option value="Work Sans, sans-serif">Work Sans</option>
-                            <option value="Fira Sans, sans-serif">Fira Sans</option>
-                            <option value="Noto Sans, sans-serif">Noto Sans</option>
-                            <option value="PT Sans, sans-serif">PT Sans</option>
-                            <option value="Oxygen, sans-serif">Oxygen</option>
-                            <option value="Muli, sans-serif">Muli</option>
-                            <option value="Rubik, sans-serif">Rubik</option>
-                            <option value="Karla, sans-serif">Karla</option>
-                            <option value="Barlow, sans-serif">Barlow</option>
-                            <option value="DM Sans, sans-serif">DM Sans</option>
-                            <option value="Manrope, sans-serif">Manrope</option>
-                            <option value="Hind, sans-serif">Hind</option>
-                            <option value="Cabin, sans-serif">Cabin</option>
-                            <option value="Quicksand, sans-serif">Quicksand</option>
-                            <option value="Varela Round, sans-serif">Varela Round</option>
-                            <option value="Comfortaa, sans-serif">Comfortaa</option>
-                            <option value="Josefin Sans, sans-serif">Josefin Sans</option>
-                            <option value="Catamaran, sans-serif">Catamaran</option>
-                            <option value="Exo 2, sans-serif">Exo 2</option>
-                            <option value="Mukti, sans-serif">Mukti</option>
-                            <option value="Asap, sans-serif">Asap</option>
-                            <option value="Titillium Web, sans-serif">Titillium Web</option>
-                            <option value="Dosis, sans-serif">Dosis</option>
-                            <option value="Abel, sans-serif">Abel</option>
-                            <option value="Archivo, sans-serif">Archivo</option>
-                            <option value="Overpass, sans-serif">Overpass</option>
-                            <option value="Helvetica, sans-serif">Helvetica</option>
-                            <option value="Arial, sans-serif">Arial</option>
-                            <option value="Verdana, sans-serif">Verdana</option>
-                            <option value="Tahoma, sans-serif">Tahoma</option>
-                            <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                            <option value="Calibri, sans-serif">Calibri</option>
-                          </optgroup>
-                          
-                          {/* Display Fonts */}
-                          <optgroup label="Display Fonts">
-                            <option value="Oswald, sans-serif">Oswald</option>
-                            <option value="Bebas Neue, sans-serif">Bebas Neue</option>
-                            <option value="Anton, sans-serif">Anton</option>
-                            <option value="Fjalla One, sans-serif">Fjalla One</option>
-                            <option value="Righteous, sans-serif">Righteous</option>
-                            <option value="Fredoka One, sans-serif">Fredoka One</option>
-                            <option value="Bangers, sans-serif">Bangers</option>
-                            <option value="Bungee, sans-serif">Bungee</option>
-                            <option value="Lobster, sans-serif">Lobster</option>
-                            <option value="Pacifico, sans-serif">Pacifico</option>
-                            <option value="Dancing Script, cursive">Dancing Script</option>
-                            <option value="Great Vibes, cursive">Great Vibes</option>
-                            <option value="Satisfy, cursive">Satisfy</option>
-                            <option value="Kaushan Script, cursive">Kaushan Script</option>
-                            <option value="Amatic SC, sans-serif">Amatic SC</option>
-                            <option value="Caveat, cursive">Caveat</option>
-                            <option value="Shadows Into Light, cursive">Shadows Into Light</option>
-                            <option value="Permanent Marker, cursive">Permanent Marker</option>
-                            <option value="Indie Flower, cursive">Indie Flower</option>
-                            <option value="Handlee, cursive">Handlee</option>
-                          </optgroup>
-                          
-                          {/* Monospace Fonts */}
-                          <optgroup label="Monospace Fonts">
-                            <option value="Fira Code, monospace">Fira Code</option>
-                            <option value="Source Code Pro, monospace">Source Code Pro</option>
-                            <option value="JetBrains Mono, monospace">JetBrains Mono</option>
-                            <option value="Roboto Mono, monospace">Roboto Mono</option>
-                            <option value="Space Mono, monospace">Space Mono</option>
-                            <option value="Inconsolata, monospace">Inconsolata</option>
-                            <option value="Ubuntu Mono, monospace">Ubuntu Mono</option>
-                            <option value="Courier New, monospace">Courier New</option>
-                            <option value="Monaco, monospace">Monaco</option>
-                            <option value="Consolas, monospace">Consolas</option>
-                          </optgroup>
+                          <option value="Inter, sans-serif" className="font-preview-inter">Inter</option>
+                          <option value="Playfair Display, serif" className="font-preview-playfair">Playfair Display</option>
+                          <option value="Lora, serif" className="font-preview-lora">Lora</option>
+                          <option value="Montserrat, sans-serif" className="font-preview-montserrat">Montserrat</option>
+                          <option value="Roboto, sans-serif" className="font-preview-roboto">Roboto</option>
+                          <option value="Open Sans, sans-serif" className="font-preview-opensans">Open Sans</option>
                         </select>
                       </div>
 
@@ -1451,33 +885,24 @@ export const CreateCapsule: React.FC = () => {
                   </div>
 
                   {/* Background */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-800">Background</h3>
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800">Background</h3>
                     
-                    <div className="flex space-x-4">
-                      <button
-                        onClick={() => setBackgroundType('solid')}
-                        className={`px-4 py-2 rounded-lg border transition-colors ${
-                          backgroundType === 'solid'
-                            ? 'border-amber-500 bg-amber-50 text-amber-700'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        Solid Color
-                      </button>
-                      <button
-                        onClick={() => setBackgroundType('gradient')}
-                        className={`px-4 py-2 rounded-lg border transition-colors ${
-                          backgroundType === 'gradient'
-                            ? 'border-amber-500 bg-amber-50 text-amber-700'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        Gradient
-                      </button>
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Background Type
+                        </label>
+                        <select
+                          value={backgroundType}
+                          onChange={(e) => setBackgroundType(e.target.value as 'solid' | 'gradient')}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        >
+                          <option value="solid">Solid Color</option>
+                          <option value="gradient">Gradient</option>
+                        </select>
+                      </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Primary Color
@@ -1486,450 +911,328 @@ export const CreateCapsule: React.FC = () => {
                           type="color"
                           value={backgroundColor}
                           onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-full h-12 border border-gray-300 rounded-lg cursor-pointer"
+                          className="w-full h-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                         />
                       </div>
 
                       {backgroundType === 'gradient' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Secondary Color
-                          </label>
-                          <input
-                            type="color"
-                            value={secondaryColor}
-                            onChange={(e) => setSecondaryColor(e.target.value)}
-                            className="w-full h-12 border border-gray-300 rounded-lg cursor-pointer"
-                          />
-                        </div>
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Secondary Color
+                            </label>
+                            <input
+                              type="color"
+                              value={secondaryColor}
+                              onChange={(e) => setSecondaryColor(e.target.value)}
+                              className="w-full h-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Gradient Direction
+                            </label>
+                            <select
+                              value={gradientDirection}
+                              onChange={(e) => setGradientDirection(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            >
+                              <option value="to-b">Top to Bottom</option>
+                              <option value="to-r">Left to Right</option>
+                              <option value="to-br">Top-Left to Bottom-Right</option>
+                              <option value="to-bl">Top-Right to Bottom-Left</option>
+                              <option value="radial">Radial</option>
+                            </select>
+                          </div>
+                        </>
                       )}
                     </div>
-
-                    {backgroundType === 'gradient' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Gradient Direction
-                        </label>
-                        <select
-                          value={gradientDirection}
-                          onChange={(e) => setGradientDirection(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        >
-                          <option value="to-b">Top to Bottom</option>
-                          <option value="to-r">Left to Right</option>
-                          <option value="to-br">Top-Left to Bottom-Right</option>
-                          <option value="to-bl">Top-Right to Bottom-Left</option>
-                          <option value="radial">Radial (Center Out)</option>
-                        </select>
-                      </div>
-                    )}
                   </div>
 
                   {/* Slideshow Settings */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-800">Slideshow Settings</h3>
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800">Slideshow Settings</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Slide Duration (seconds)
+                        </label>
+                        <input
+                          type="number"
+                          min="2"
+                          max="30"
+                          value={slideDuration}
+                          onChange={(e) => setSlideDuration(Number(e.target.value))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Transition Effect
+                        </label>
+                        <select
+                          value={transitionEffect}
+                          onChange={(e) => setTransitionEffect(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        >
+                          <option value="fade">Fade</option>
+                          <option value="slide">Slide</option>
+                          <option value="slideUp">Slide Up</option>
+                          <option value="slideDown">Slide Down</option>
+                          <option value="zoom">Zoom In</option>
+                          <option value="zoomOut">Zoom Out</option>
+                          <option value="flipHorizontal">Flip Horizontal</option>
+                          <option value="flipVertical">Flip Vertical</option>
+                          <option value="rotate">Rotate</option>
+                          <option value="spiral">Spiral</option>
+                          <option value="blur">Blur</option>
+                          <option value="bounce">Bounce</option>
+                          <option value="elastic">Elastic</option>
+                          <option value="curtain">Curtain</option>
+                          <option value="wave">Wave</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Transition Speed
+                        </label>
+                        <select
+                          value={transitionSpeed}
+                          onChange={(e) => setTransitionSpeed(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        >
+                          <option value="slow">Slow</option>
+                          <option value="medium">Medium</option>
+                          <option value="fast">Fast</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Background Music */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800">Background Music</h3>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Slide Duration: {slideDuration} seconds
+                        Select Background Music (Optional)
                       </label>
-                      <input
-                        type="range"
-                        min="1"
-                        max="30"
-                        value={slideDuration}
-                        onChange={(e) => setSlideDuration(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                        style={{
-                          background: `linear-gradient(to right, #C0A172 0%, #C0A172 ${((slideDuration - 1) / 29) * 100}%, #e5e7eb ${((slideDuration - 1) / 29) * 100}%, #e5e7eb 100%)`
+                      <select
+                        value={backgroundMusic?.id || ''}
+                        onChange={(e) => {
+                          const selectedMusic = backgroundMusicLibrary.find(music => music.id === e.target.value);
+                          setBackgroundMusic(selectedMusic || null);
                         }}
-                      />
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>1s</span>
-                        <span>30s</span>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-2">
-                        <p>• Images/Text: {slideDuration} seconds</p>
-                        <p>• Videos: {slideDuration * 3} seconds (or until video ends)</p>
-                        <p>• Audio: {slideDuration * 2} seconds (or until audio ends)</p>
-                      </div>
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      >
+                        <option value="">No Background Music</option>
+                        {backgroundMusicLibrary.map((music) => (
+                          <option key={music.id} value={music.id}>
+                            {music.title} - {music.genre}
+                          </option>
+                        ))}
+                      </select>
+                      {backgroundMusic && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          Selected: {backgroundMusic.title} ({backgroundMusic.genre})
+                        </p>
+                      )}
                     </div>
                   </div>
+                </motion.div>
+              )}
 
-                  {/* Background Music Section */}
-                  <div className="space-y-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Background Music (Optional)
-                    </label>
+              {/* Preview Tab */}
+              {activeTab === 'preview' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                    Preview Your Capsule
+                  </h2>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
+                    <h3 className="font-medium text-amber-800 mb-2">
+                      🎬 Preview Mode
+                    </h3>
+                    <p className="text-amber-700 text-sm">
+                      See exactly how your time capsule will look when delivered to recipients. 
+                      You can make adjustments and preview again until it's perfect.
+                    </p>
+                  </div>
+
+                  <div className="text-center">
+                    <button
+                      onClick={() => setShowPreview(true)}
+                      className="btn-primary text-lg px-8 py-4 inline-flex items-center space-x-3"
+                      disabled={!title.trim() || mediaFiles.length === 0}
+                    >
+                      <Play className="w-6 h-6" />
+                      <span>Preview Slideshow</span>
+                    </button>
                     
-                    {backgroundMusic ? (
-                      <div className={`rounded-lg p-6 border ${
-                        backgroundMusic.genre === 'Custom Upload' 
-                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
-                          : 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              backgroundMusic.genre === 'Custom Upload'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600'
-                                : 'bg-gradient-to-r from-purple-500 to-indigo-600'
-                            }`}>
-                              <Music className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-800">{backgroundMusic.title}</h4>
-                              <p className="text-sm text-gray-600">{backgroundMusic.genre}</p>
-                              {backgroundMusic.genre === 'Custom Upload' && customAudioFile && (
-                                <p className="text-xs text-gray-500">
-                                  {formatFileSize(customAudioFile.size)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleMusicPlayback(backgroundMusic)}
-                              className={`p-2 rounded-full transition-colors ${
-                                backgroundMusic.genre === 'Custom Upload'
-                                  ? 'text-green-600 hover:bg-green-100'
-                                  : 'text-purple-600 hover:bg-purple-100'
-                              }`}
-                            >
-                              {currentlyPlaying === backgroundMusic.id ? (
-                                <Pause className="w-5 h-5" />
-                              ) : (
-                                <Play className="w-5 h-5" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={removeBackgroundMusic}
-                              className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Music Library Option */}
-                        <button
-                          type="button"
-                          onClick={() => setShowMusicLibrary(true)}
-                          className="w-full p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 group"
-                        >
-                          <div className="text-center">
-                            <Music className="w-12 h-12 text-gray-400 group-hover:text-purple-500 mx-auto mb-4 transition-colors" />
-                            <p className="text-lg font-medium text-gray-700 group-hover:text-purple-700 transition-colors">
-                              Choose from Music Library
-                            </p>
-                            <p className="text-sm text-gray-500 mt-2">
-                              Select from our curated instrumental collection
-                            </p>
-                          </div>
-                        </button>
-
-                        {/* Divider */}
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-300" />
-                          </div>
-                          <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white text-gray-500">or</span>
-                          </div>
-                        </div>
-
-                        {/* Custom Audio Upload Option */}
-                        <button
-                          type="button"
-                          onClick={() => customAudioInputRef.current?.click()}
-                          className="w-full p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-all duration-200 group"
-                        >
-                          <div className="text-center">
-                            <Upload className="w-12 h-12 text-gray-400 group-hover:text-green-500 mx-auto mb-4 transition-colors" />
-                            <p className="text-lg font-medium text-gray-700 group-hover:text-green-700 transition-colors">
-                              Upload Your Own Audio
-                            </p>
-                            <p className="text-sm text-gray-500 mt-2">
-                              Upload your personal audio file (MP3, WAV, OGG, M4A • Max 50MB)
-                            </p>
-                          </div>
-                        </button>
-
-                        {/* Hidden file input for custom audio */}
-                        <input
-                          ref={customAudioInputRef}
-                          type="file"
-                          accept="audio/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              handleCustomAudioUpload(file);
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </div>
+                    {(!title.trim() || mediaFiles.length === 0) && (
+                      <p className="text-sm text-gray-500 mt-3">
+                        Add a title and at least one media file to preview
+                      </p>
                     )}
                   </div>
 
-                  {/* Transition Effects Section */}
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
-                      Transition Effects
-                    </h3>
-                    
-                    {/* Transition Effect Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3 uppercase tracking-wider">
-                        Choose Transition Effect
-                      </label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {transitionEffects.map((effect) => (
-                          <button
-                            key={effect.id}
-                            type="button"
-                            onClick={() => setTransitionEffect(effect.id)}
-                            className={`p-4 rounded-lg border-2 text-left transition-all duration-200 hover:shadow-md ${
-                              transitionEffect === effect.id
-                                ? 'border-amber-500 bg-amber-50 shadow-md'
-                                : 'border-gray-200 bg-white hover:border-gray-300'
-                            }`}
-                            style={{ borderColor: transitionEffect === effect.id ? '#C0A172' : undefined }}
-                          >
-                            <div className="font-semibold text-gray-800 mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
-                              {effect.name}
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              {effect.description}
-                            </div>
-                          </button>
-                        ))}
+                  {/* Preview Summary */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="font-medium text-gray-800 mb-4">Capsule Summary</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Title:</span>
+                        <span className="text-gray-800 font-medium">{title || 'Not set'}</span>
                       </div>
-                    </div>
-
-                    {/* Transition Speed Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3 uppercase tracking-wider">
-                        Transition Speed
-                      </label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {speedOptions.map((speed) => (
-                          <button
-                            key={speed.id}
-                            type="button"
-                            onClick={() => setTransitionSpeed(speed.id)}
-                            className={`p-4 rounded-lg border-2 text-center transition-all duration-200 hover:shadow-md ${
-                              transitionSpeed === speed.id
-                                ? 'border-amber-500 bg-amber-50 shadow-md'
-                                : 'border-gray-200 bg-white hover:border-gray-300'
-                            }`}
-                            style={{ borderColor: transitionSpeed === speed.id ? '#C0A172' : undefined }}
-                          >
-                            <div className="font-semibold text-gray-800 mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
-                              {speed.name}
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              {speed.description}
-                            </div>
-                          </button>
-                        ))}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Media Files:</span>
+                        <span className="text-gray-800 font-medium">{mediaFiles.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Recipients:</span>
+                        <span className="text-gray-800 font-medium">
+                          {recipients.filter(r => r.name.trim() && r.email.trim()).length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Delivery Date:</span>
+                        <span className="text-gray-800 font-medium">
+                          {deliveryDate ? new Date(deliveryDate).toLocaleDateString() : 'Not set'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Background Music:</span>
+                        <span className="text-gray-800 font-medium">
+                          {backgroundMusic ? backgroundMusic.title : 'None'}
+                        </span>
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
-
-              {/* Recipients Tab */}
-              {activeTab === 'recipients' && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                    Recipients
-                  </h2>
-
-                  <div className="space-y-4">
-                    {recipients.map((recipient, index) => (
-                      <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-medium text-gray-800">
-                            Recipient {index + 1}
-                          </h3>
-                          {recipients.length > 1 && (
-                            <button
-                              onClick={() => removeRecipient(index)}
-                              className="text-red-500 hover:text-red-700 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={recipient.name}
-                              onChange={(e) => updateRecipient(index, 'name', e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                              placeholder="Recipient's name"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Email *
-                            </label>
-                            <input
-                              type="email"
-                              value={recipient.email}
-                              onChange={(e) => updateRecipient(index, 'email', e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                              placeholder="recipient@example.com"
-                              required
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    <button
-                      onClick={addRecipient}
-                      className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
-                    >
-                      + Add Another Recipient
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={() => setShowPreview(true)}
-                className="btn-secondary flex items-center justify-center space-x-2"
-              >
-                <Eye className="w-5 h-5" />
-                <span>Preview Slideshow</span>
-              </button>
-              
-              <button
-                onClick={handleSaveAsDraft}
-                disabled={!title.trim() || loading}
-                className="btn-outline flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5" />
-                    <span>Save as Draft</span>
-                  </>
-                )}
-              </button>
-              
-              <button
-                onClick={handleFinalSubmit}
-                disabled={loading}
-                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Saving...' : (editCapsuleId ? 'Update Time Capsule' : 'Save Time Capsule')}
-              </button>
             </div>
           </div>
 
-          {/* Live Preview */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-                  <Eye className="w-5 h-5 mr-2" />
-                  Live Preview
-                </h3>
-
-                {/* Preview Content */}
-                <div 
-                  className="rounded-lg p-6 min-h-[300px] transition-all duration-500"
-                  style={getBackgroundStyle()}
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={saveDraft}
+                  disabled={loading || !title.trim()}
+                  className="w-full btn-outline py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
-                  {title && (
-                    <h1 
-                      className={`${titleSize} font-bold text-gray-800 mb-4 leading-tight`}
-                      style={{ fontFamily: titleFont }}
-                    >
-                      {title}
-                    </h1>
-                  )}
-                  
-                  {message && (
-                    <p 
-                      className={`${messageSize} text-gray-700 mb-6 leading-relaxed whitespace-pre-wrap`}
-                      style={{ fontFamily: messageFont }}
-                    >
-                      {message}
-                    </p>
-                  )}
+                  <Save className="w-4 h-4" />
+                  <span>{loading ? 'Saving...' : 'Save Draft'}</span>
+                </button>
 
-                  {/* Media Preview */}
-                  {mediaFiles.length > 0 && (
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-medium text-gray-600 uppercase tracking-wider">
-                        Media ({mediaFiles.length} files)
-                      </h4>
-                      <div className="space-y-3">
-                        {mediaFiles.slice(0, 3).map((file) => (
-                          <div key={file.id} className="bg-gray-50 rounded-lg overflow-hidden">
-                            {file.type === 'image' && (
-                              <img
-                                src={file.url}
-                                alt={file.name}
-                                className="w-full h-40 object-contain bg-gray-50"
-                              />
-                            )}
-                            {file.type === 'video' && (
-                              <video
-                                src={file.url}
-                                className="w-full h-40 object-contain bg-gray-50"
-                                controls
-                              />
-                            )}
-                            {file.type === 'audio' && (
-                              <div className="h-40 flex flex-col items-center justify-center bg-gray-50">
-                                <Music className="w-8 h-8 text-purple-600 mb-2" />
-                                <p className="text-sm text-gray-600 text-center px-2">
-                                  {file.name}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {mediaFiles.length > 3 && (
-                          <div className="text-center text-sm text-gray-500">
-                            +{mediaFiles.length - 3} more files
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={() => setShowPreview(true)}
+                  disabled={!title.trim() || mediaFiles.length === 0}
+                  className="w-full btn-secondary py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Preview</span>
+                </button>
 
-                {/* Style Information */}
-                <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 space-y-1">
-                  <div>Font: {titleFont.split(',')[0]} / {messageFont.split(',')[0]}</div>
-                  <div>Background: {backgroundType === 'gradient' ? 'Gradient' : 'Solid'}</div>
-                  <div>Slide Duration: {slideDuration}s</div>
-                  {senderName && <div>From: {senderName}</div>}
-                  {deliveryDate && <div>Delivery: {new Date(deliveryDate).toLocaleDateString()}</div>}
+                <button
+                  onClick={sendCapsule}
+                  disabled={loading || !title.trim() || !message.trim() || !deliveryDate || recipients.filter(r => r.name.trim() && r.email.trim()).length === 0}
+                  className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{loading ? 'Sending...' : 'Send Capsule'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Progress Indicator */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Progress</h3>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Title</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${title.trim() ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                    {title.trim() ? 'Complete' : 'Pending'}
+                  </span>
                 </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Message</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${message.trim() ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                    {message.trim() ? 'Complete' : 'Pending'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Media</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${mediaFiles.length > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                    {mediaFiles.length > 0 ? `${mediaFiles.length} files` : 'None'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Recipients</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${recipients.filter(r => r.name.trim() && r.email.trim()).length > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                    {recipients.filter(r => r.name.trim() && r.email.trim()).length || 'None'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Schedule</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${deliveryDate ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                    {deliveryDate ? 'Set' : 'Pending'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Navigation</h3>
+              
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    const tabs = ['content', 'media', 'recipients', 'schedule', 'customize', 'preview'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    if (currentIndex > 0) {
+                      setActiveTab(tabs[currentIndex - 1]);
+                    }
+                  }}
+                  disabled={activeTab === 'content'}
+                  className="flex-1 btn-outline py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    const tabs = ['content', 'media', 'recipients', 'schedule', 'customize', 'preview'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    if (currentIndex < tabs.length - 1) {
+                      setActiveTab(tabs[currentIndex + 1]);
+                    }
+                  }}
+                  disabled={activeTab === 'preview'}
+                  className="flex-1 btn-outline py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1"
+                >
+                  <span>Next</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -1942,7 +1245,7 @@ export const CreateCapsule: React.FC = () => {
         onClose={() => setShowPreview(false)}
         title={title}
         message={message}
-        senderName={senderName || 'Your Family'}
+        senderName={senderName}
         titleFont={titleFont}
         messageFont={messageFont}
         titleSize={titleSize}
@@ -1958,106 +1261,6 @@ export const CreateCapsule: React.FC = () => {
         slideDuration={slideDuration * 1000}
         backgroundMusic={backgroundMusic}
       />
-
-      {/* Music Library Modal */}
-      <AnimatePresence>
-        {showMusicLibrary && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={() => setShowMusicLibrary(false)}
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Choose Background Music
-                </h2>
-                <button
-                  onClick={() => setShowMusicLibrary(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="p-6 overflow-y-auto max-h-[60vh]">
-                <div className="grid grid-cols-1 gap-4">
-                  {musicLibrary.map((track) => (
-                    <div
-                      key={track.id}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
-                            <Music className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-gray-800">{track.title}</h4>
-                            <p className="text-sm text-gray-600">{track.genre}</p>
-                            <p className="text-xs text-gray-500 mt-1">{track.description}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => toggleMusicPlayback(track)}
-                            className="p-2 text-purple-600 hover:bg-purple-100 rounded-full transition-colors"
-                          >
-                            {currentlyPlaying === track.id ? (
-                              <Pause className="w-5 h-5" />
-                            ) : (
-                              <Play className="w-5 h-5" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => selectBackgroundMusic(track)}
-                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                          >
-                            Select
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Upgrade Notice */}
-                <div className="mt-8 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-6 border border-amber-200">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-10 h-10 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Crown className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-amber-800 mb-2">
-                        Unlock Full Music Library
-                      </h3>
-                      <p className="text-amber-700 text-sm mb-4">
-                        Access our complete collection of 100+ instrumental tracks with the Legacy plan. 
-                        Perfect for creating the ideal atmosphere for your time capsules.
-                      </p>
-                      <button
-                        onClick={() => window.location.href = '/#pricing'}
-                        className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium"
-                      >
-                        View Plans
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* File Arrangement Modal */}
       <FileArrangementModal
