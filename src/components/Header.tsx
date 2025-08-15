@@ -309,8 +309,7 @@ const Header: React.FC<HeaderProps> = ({ user, profile, onSignIn, onSignOut, onS
                   {user ? (
                     <div className="space-y-3">
                       <div className="flex items-center px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
-                        {(profile?.avatar_url || user.avatar_url) ? (
-                          {(profile?.avatar_url || user?.user_metadata?.avatar_url) ? (
+                        {(profile?.avatar_url || user?.user_metadata?.avatar_url) ? (
                             <img
                               src={profile?.avatar_url || user?.user_metadata?.avatar_url}
                               alt={user?.user_metadata?.name || user?.email || 'User'}
@@ -321,11 +320,6 @@ const Header: React.FC<HeaderProps> = ({ user, profile, onSignIn, onSignOut, onS
                               <User className="w-4 h-4 text-gray-400" />
                             </div>
                           )}
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200 mr-3">
-                            <User className="w-4 h-4 text-gray-400" />
-                          </div>
-                        )}
                         <div>
                           <div className="font-medium text-gray-800">{user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}</div>
                           <div className="text-xs text-gray-500">{user?.email}</div>
