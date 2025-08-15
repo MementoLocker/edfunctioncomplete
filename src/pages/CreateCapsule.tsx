@@ -213,7 +213,6 @@ export const CreateCapsule: React.FC = () => {
         // Generate unique filename
         const fileExt = mediaFile.name.split('.').pop();
         const fileName = `${user?.id}/capsules/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          .from('captules')
         // Upload to Supabase Storage (captules bucket)
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('captules')
