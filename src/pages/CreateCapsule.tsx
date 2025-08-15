@@ -86,24 +86,23 @@ export const CreateCapsule: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+  const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
+  const [savingDraft, setSavingDraft] = useState(false);
   
-  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customAudioInputRef = useRef<HTMLInputElement>(null);
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
 
-  // Toast helper
-  const triggerToast = (message: string, type: 'success' | 'error' | 'warning') => {
+  const triggerToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
   };
 
-  // Load capsule for editing
+  // Load existing capsule data if editing
   useEffect(() => {
     if (editCapsuleId && user) {
-      loadCapsuleForEditing(editCapsuleId);
+      loadCapsuleData(editCapsuleId);
     }
   }, [editCapsuleId, user]);
 
@@ -146,20 +145,19 @@ export const CreateCapsule: React.FC = () => {
         setSlideDuration(customization.slideDuration || 5);
         setTransitionEffect(customization.transitionEffect || 'fade');
         setTransitionSpeed(customization.transitionSpeed || 'medium');
-        setBackgroundMusic(customization.backgroundMusic || null);
+        
+        // Handle media files - show info about previous files but don't try to restore them
+        if (data.files && (data.files.count > 0 || data.files.length > 0)) {
+          const fileCount = data.files.count || data.files.length || 0;
+          triggerToast(`This draft had ${fileCount} media file(s). Please re-upload your media files to continue.`, 'info');
+          // Clear any existing media files since we can't restore them
+          setMediaFiles([]);
+        }
 
-        // Restore media files from saved data
-        if (data.files && Array.isArray(data.files)) {
-          const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
-            id: fileData.id || crypto.randomUUID(),
-            file: new File([], fileData.name || 'unknown'), // placeholder file object
-            type: fileData.type || 'image',
-            url: fileData.url || '',
-            name: fileData.name || 'Unknown file',
-            size: fileData.size || 0,
-            storage_path: fileData.storage_path
-          }));
-          setMediaFiles(loadedFiles);
+        // Load media files - Note: In a real implementation, you'd need to handle file reconstruction
+        // For now, we'll show a message that files need to be re-uploaded
+        if (data.files && data.files.length > 0) {
+          triggerToast(`This capsule has ${data.files.length} media files. You may need to re-upload them if you want to make changes.`, 'info');
         }
 
         triggerToast('Draft loaded successfully!', 'success');
@@ -249,8 +247,6 @@ export const CreateCapsule: React.FC = () => {
         alert(`${file.name}: ${error}`);
         continue;
       }
-      // For new uploads, create object URL. For loaded files, use the stored URL
-      const url = URL.createObjectURL(file);
 
       const mediaFile: MediaFile = {
         id: `${Date.now()}-${i}`,
@@ -505,9 +501,9 @@ export const CreateCapsule: React.FC = () => {
         const fileName = `${user?.id}/capsules/${timestamp}-${randomId}.${fileExt}`;
         
         console.log('Uploading file:', fileName, 'Size:', mediaFile.file.size);
-        // Upload to Supabase Storage - use the correct bucket name
+        
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('captules')
+          .from('avatars')
           .upload(fileName, mediaFile.file);
 
         if (uploadError) {
@@ -518,7 +514,7 @@ export const CreateCapsule: React.FC = () => {
         console.log('Upload successful:', uploadData);
         
         const { data: { publicUrl } } = supabase.storage
-          .from('captules')
+          .from('avatars')
           .getPublicUrl(fileName);
 
         console.log('Public URL generated:', publicUrl);
@@ -685,14 +681,7 @@ export const CreateCapsule: React.FC = () => {
         message: message.trim(),
         recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
         delivery_date: deliveryDate,
-        files: uploadedFiles.map(file => ({
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          url: file.url,
-          size: file.size,
-          storage_path: file.storage_path
-        })),
+        files: JSON.stringify(uploadedFiles),
         customization: {
           titleFont,
           messageFont,
@@ -712,7 +701,6 @@ export const CreateCapsule: React.FC = () => {
 
       console.log('Saving capsule data:', capsuleData);
       
-      const isEditing = !!editCapsuleId;
       if (isEditing && editCapsuleId) {
         const { error } = await supabase
           .from('capsules')
@@ -772,7 +760,7 @@ export const CreateCapsule: React.FC = () => {
       setTransitionEffect(customization.transitionEffect || 'fade');
       setTransitionSpeed(customization.transitionSpeed || 'medium');
       setSlideDuration(customization.slideDuration || 5000);
-      setBackgroundMusic(customization.backgroundMusic || null);
+      setSelectedBackgroundMusic(customization.backgroundMusic || null);
 
       // Load media files
       let filesData = data.files;
@@ -785,23 +773,39 @@ export const CreateCapsule: React.FC = () => {
         }
       }
       
-      if (data.files && Array.isArray(data.files)) {
-        console.log('Loading files from database:', data.files);
-        console.log('Loading media files from database:', data.files);
+      console.log('Files data to load:', filesData);
+      
+      if (filesData && Array.isArray(filesData)) {
+        const loadedMediaFiles: MediaFile[] = [];
         
-        const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
-          id: fileData.id || crypto.randomUUID(),
-          file: null as any, // We don't have the original file when loading from database
-          type: fileData.type || 'image',
-          url: fileData.url || '',
-          name: fileData.name || 'Unknown file',
-          size: fileData.size || 0,
-          storage_path: fileData.storage_path
-        }));
-        console.log('Converted to MediaFile objects:', loadedFiles);
+        for (const fileData of filesData) {
+          try {
+            console.log('Processing file data:', fileData);
+            
+            // Create a blob from the URL to simulate a File object
+            const response = await fetch(fileData.url);
+            const blob = await response.blob();
+            
+            // Create a File object from the blob
+            const file = new File([blob], fileData.name, { type: blob.type });
+            
+            loadedMediaFiles.push({
+              id: fileData.id,
+              file: file,
+              type: fileData.type,
+              url: fileData.url,
+              name: fileData.name,
+              size: fileData.size || blob.size
+            });
+            
+            console.log('Successfully loaded file:', fileData.name);
+          } catch (error) {
+            console.error('Error loading media file:', fileData.name, error);
+          }
+        }
         
-        console.log('Loaded media files:', loadedFiles);
-        setMediaFiles(loadedFiles);
+        console.log('Setting media files:', loadedMediaFiles);
+        setMediaFiles(loadedMediaFiles);
       }
     } catch (error) {
       console.error('Error loading capsule:', error);
