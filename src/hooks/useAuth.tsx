@@ -38,15 +38,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, email, avatar_url, subscription_status, stripe_customer_id, stripe_subscription_id, stripe_price_id, trial_end_date, capsules_sent, created_at')
+        .select('*')
         .eq('id', currentUser.id)
         .single();
 
       if (error) {
-        console.log('Profile not found, will be created automatically:', error.message);
+        console.error('Error fetching profile:', error);
         setProfile(null);
       } else {
-        console.log('Profile loaded successfully:', data);
         setProfile(data);
       }
     } catch (err) {
