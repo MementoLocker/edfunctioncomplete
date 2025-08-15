@@ -675,13 +675,55 @@ export const CreateCapsule: React.FC = () => {
       const uploadedFiles = await uploadMediaFiles(mediaFiles);
       console.log('Uploaded files result:', uploadedFiles);
 
+      // Upload media files to Supabase Storage first
+      const uploadedFileUrls = [];
+      
+      for (const file of mediaFiles) {
+        if (!file.storage_path) { // Only upload if not already uploaded
+          const fileExt = file.file.name.split('.').pop();
+          const fileName = `${user.id}/capsules/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, file.file);
+          
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw new Error(`Failed to upload ${file.file.name}`);
+          }
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+          
+          uploadedFileUrls.push({
+            id: file.id,
+            name: file.file.name,
+            type: file.type,
+            size: file.file.size,
+            url: publicUrl,
+            storage_path: fileName
+          });
+        } else {
+          // File already uploaded, keep existing data
+          uploadedFileUrls.push({
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: file.url,
+            storage_path: file.storage_path
+          });
+        }
+      }
+
       const capsuleData = {
         user_id: user.id,
         title: title.trim(),
         message: message.trim(),
         recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
         delivery_date: deliveryDate,
-        files: JSON.stringify(uploadedFiles),
+        files: JSON.stringify(uploadedFileUrls),
         customization: {
           titleFont,
           messageFont,
@@ -715,6 +757,17 @@ export const CreateCapsule: React.FC = () => {
         
         if (error) throw error;
       }
+      // Update local state with uploaded file data
+      setMediaFiles(uploadedFileUrls.map(fileData => ({
+        id: fileData.id,
+        file: new File([], fileData.name), // Placeholder file object
+        type: fileData.type as 'image' | 'video' | 'audio',
+        url: fileData.url,
+        name: fileData.name,
+        size: fileData.size,
+        storage_path: fileData.storage_path
+      })));
+
 
       triggerToast('Draft saved successfully!', 'success');
       setTimeout(() => navigate('/my-capsules'), 1500);
@@ -750,6 +803,25 @@ export const CreateCapsule: React.FC = () => {
       // Load customization
       const customization = data.customization || {};
       setTitleFont(customization.titleFont || 'Playfair Display, serif');
+      // Load media files
+      try {
+        const filesData = typeof data.files === 'string' ? JSON.parse(data.files) : data.files;
+        if (Array.isArray(filesData) && filesData.length > 0) {
+          const loadedFiles = filesData.map(fileData => ({
+            id: fileData.id || Math.random().toString(36).substring(7),
+            file: new File([], fileData.name || 'unknown'), // Placeholder file object
+            type: fileData.type as 'image' | 'video' | 'audio',
+            url: fileData.url,
+            name: fileData.name || 'unknown',
+            size: fileData.size || 0,
+            storage_path: fileData.storage_path
+          }));
+          setMediaFiles(loadedFiles);
+        }
+      } catch (e) {
+        console.error('Error parsing files:', e);
+        setMediaFiles([]);
+      }
       setMessageFont(customization.messageFont || 'Inter, sans-serif');
       setTitleSize(customization.titleSize || 'text-4xl');
       setMessageSize(customization.messageSize || 'text-lg');
