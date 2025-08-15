@@ -248,6 +248,7 @@ export const CreateCapsule: React.FC = () => {
       if (error) {
         alert(`${file.name}: ${error}`);
         continue;
+      }
       // For new uploads, create object URL. For loaded files, use the stored URL
       const url = URL.createObjectURL(file);
 
