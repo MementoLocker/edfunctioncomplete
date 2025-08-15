@@ -213,7 +213,7 @@ export const CreateCapsule: React.FC = () => {
         // Generate unique filename
         const fileExt = mediaFile.name.split('.').pop();
         const fileName = `${user?.id}/capsules/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        
+          .from('captules')
         // Upload to Supabase Storage (captules bucket)
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('captules')
@@ -226,6 +226,13 @@ export const CreateCapsule: React.FC = () => {
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('captules')
+          .getPublicUrl(fileName);
+
+        console.log('Generated public URL:', publicUrl);
+
           .from('captules')
           .getPublicUrl(fileName);
 
@@ -234,7 +241,7 @@ export const CreateCapsule: React.FC = () => {
           name: mediaFile.name,
           type: mediaFile.type,
           size: mediaFile.size,
-          url: publicUrl,
+          url: publicUrl, // Use permanent Supabase public URL
           storage_path: fileName
         };
 
