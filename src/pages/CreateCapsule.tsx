@@ -84,29 +84,6 @@ export const CreateCapsule: React.FC = () => {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [showFileArrangement, setShowFileArrangement] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'info' | 'warning' | 'error'>('success');
-  const [savingDraft, setSavingDraft] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const customAudioInputRef = useRef<HTMLInputElement>(null);
-  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
-
-  const triggerToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
-  };
-
-  // Load existing capsule data if editing
-  useEffect(() => {
-    if (editCapsuleId && user) {
-      loadCapsuleData(editCapsuleId);
-    }
-  }, [editCapsuleId, user]);
-
-  const loadCapsuleData = async (capsuleId: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -145,19 +122,20 @@ export const CreateCapsule: React.FC = () => {
         setSlideDuration(customization.slideDuration || 5);
         setTransitionEffect(customization.transitionEffect || 'fade');
         setTransitionSpeed(customization.transitionSpeed || 'medium');
-        
-        // Handle media files - show info about previous files but don't try to restore them
-        if (data.files && (data.files.count > 0 || data.files.length > 0)) {
-          const fileCount = data.files.count || data.files.length || 0;
-          triggerToast(`This draft had ${fileCount} media file(s). Please re-upload your media files to continue.`, 'info');
-          // Clear any existing media files since we can't restore them
-          setMediaFiles([]);
-        }
+        setBackgroundMusic(customization.backgroundMusic || null);
 
-        // Load media files - Note: In a real implementation, you'd need to handle file reconstruction
-        // For now, we'll show a message that files need to be re-uploaded
-        if (data.files && data.files.length > 0) {
-          triggerToast(`This capsule has ${data.files.length} media files. You may need to re-upload them if you want to make changes.`, 'info');
+        // Restore media files from saved data
+        if (data.files && Array.isArray(data.files)) {
+          const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
+            id: fileData.id || crypto.randomUUID(),
+            file: new File([], fileData.name || 'unknown'), // placeholder file object
+            type: fileData.type || 'image',
+            url: fileData.url || '',
+            name: fileData.name || 'Unknown file',
+            size: fileData.size || 0,
+            storage_path: fileData.storage_path
+          }));
+          setMediaFiles(loadedFiles);
         }
 
         triggerToast('Draft loaded successfully!', 'success');
