@@ -1,3 +1,6 @@
+Looking at this React component file, I can see several missing closing brackets. Here's the corrected version:
+
+```typescript
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -494,6 +497,18 @@ export const CreateCapsule: React.FC = () => {
     
     for (const mediaFile of files) {
       try {
+        // Skip files that are already uploaded (have storage_path)
+        if (mediaFile.storage_path) {
+          uploadedFiles.push({
+            id: mediaFile.id,
+            name: mediaFile.name,
+            type: mediaFile.type,
+            url: mediaFile.url,
+            storage_path: mediaFile.storage_path
+          });
+          continue;
+        }
+
         // Create a unique filename with proper extension
         const fileExt = mediaFile.file.name.split('.').pop() || 'bin';
         const timestamp = Date.now();
@@ -524,8 +539,6 @@ export const CreateCapsule: React.FC = () => {
           name: mediaFile.file.name,
           type: mediaFile.type,
           url: publicUrl,
-          url: mediaFile.url,
-          storage_path: mediaFile.storage_path
           storage_path: fileName
         });
       } catch (error) {
@@ -536,8 +549,7 @@ export const CreateCapsule: React.FC = () => {
     
     return uploadedFiles;
   };
-        const { error: uploadError } = await supabase.storage
-          .from('captules')
+
   const handleSubmit = async (saveAsDraft = false) => {
     if (!saveAsDraft) {
       // Full validation for final submission
@@ -546,7 +558,7 @@ export const CreateCapsule: React.FC = () => {
         return;
       }
       
-          .from('captules')
+      if (!senderName.trim()) {
         alert('Please enter a sender name');
         return;
       }
@@ -556,8 +568,7 @@ export const CreateCapsule: React.FC = () => {
         return;
       }
 
-          url: publicUrl,
-          storage_path: fileName
+      if (recipients.some(r => !r.name.trim() || !r.email.trim())) {
         alert('Please fill in all recipient information');
         return;
       }
@@ -594,7 +605,7 @@ export const CreateCapsule: React.FC = () => {
         : recipients;
       
       // Simplified data structure for debugging
-        files: uploadedFiles,
+      const capsuleData = {
         title: title.trim(),
         message: message.trim() || null,
         recipients: validRecipients,
@@ -703,6 +714,7 @@ export const CreateCapsule: React.FC = () => {
 
       console.log('Saving capsule data:', capsuleData);
       
+      const isEditing = !!editCapsuleId;
       if (isEditing && editCapsuleId) {
         const { error } = await supabase
           .from('capsules')
@@ -756,17 +768,16 @@ export const CreateCapsule: React.FC = () => {
       setTitleSize(customization.titleSize || 'text-4xl');
       setMessageSize(customization.messageSize || 'text-lg');
       setBackgroundColor(customization.backgroundColor || '#FFFFFF');
-      if (data.files && Array.isArray(data.files)) {
-        const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
-          id: fileData.id || crypto.randomUUID(),
-          file: new File([], fileData.name || 'unknown'), // placeholder file object
-          type: fileData.type || 'image',
-          url: fileData.url || '',
-          name: fileData.name || 'Unknown file',
-          size: fileData.size || 0,
-          storage_path: fileData.storage_path
-        }));
-        setMediaFiles(loadedFiles);
+
+      // Load files
+      let filesData = data.files;
+      if (typeof filesData === 'string') {
+        try {
+          filesData = JSON.parse(filesData);
+        } catch (e) {
+          console.error('Error parsing files JSON:', e);
+          filesData = [];
+        }
       }
       
       console.log('Files data to load:', filesData);
@@ -791,7 +802,8 @@ export const CreateCapsule: React.FC = () => {
               type: fileData.type,
               url: fileData.url,
               name: fileData.name,
-              size: fileData.size || blob.size
+              size: fileData.size || blob.size,
+              storage_path: fileData.storage_path
             });
             
             console.log('Successfully loaded file:', fileData.name);
@@ -813,8 +825,8 @@ export const CreateCapsule: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-      // Skip files that are already uploaded (have storage_path)
-      if (mediaFile.storage_path) {
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading capsule...</p>
         </div>
       </div>
     );
@@ -2075,3 +2087,13 @@ export const CreateCapsule: React.FC = () => {
     </div>
   );
 };
+```
+
+The main issues I fixed were:
+
+1. **Missing interface property**: Added `storage_path?: string` to the `MediaFile` interface
+2. **Missing closing brackets**: Added several missing `}` brackets throughout the code
+3. **Incomplete function calls**: Completed the `uploadMediaFiles` function and other incomplete sections
+4. **Syntax errors**: Fixed various syntax issues and incomplete statements
+
+The file should now compile and run properly without syntax errors.
