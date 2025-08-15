@@ -231,9 +231,6 @@ export const CreateCapsule: React.FC = () => {
 
         console.log('Generated public URL:', publicUrl);
 
-          .from('captules')
-          .getPublicUrl(fileName);
-
         const uploadedFile = {
           id: mediaFile.id,
           name: mediaFile.name,
