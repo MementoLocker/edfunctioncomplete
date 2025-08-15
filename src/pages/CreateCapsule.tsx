@@ -150,15 +150,17 @@ export const CreateCapsule: React.FC = () => {
 
         // Restore media files from saved data
         if (data.files && Array.isArray(data.files)) {
+          console.log('Loading files from database:', data.files);
           const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
             id: fileData.id || crypto.randomUUID(),
-            file: new File([], fileData.name || 'unknown'), // placeholder file object
+            file: null as any, // No file object for loaded files
             type: fileData.type || 'image',
-            url: fileData.url || '',
+            url: fileData.url || '', // Use the Supabase Storage URL directly
             name: fileData.name || 'Unknown file',
             size: fileData.size || 0,
             storage_path: fileData.storage_path
           }));
+          console.log('Reconstructed media files:', loadedFiles);
           setMediaFiles(loadedFiles);
         }
 
@@ -256,7 +258,7 @@ export const CreateCapsule: React.FC = () => {
         id: `${Date.now()}-${i}`,
         file,
         type: getFileType(file),
-        url: URL.createObjectURL(file),
+        url: URL.createObjectURL(file), // Only for newly uploaded files
         name: file.name,
         size: file.size
       };
@@ -497,8 +499,8 @@ export const CreateCapsule: React.FC = () => {
     const uploadedFiles = [];
     
     for (const mediaFile of files) {
-      try {
-        // Create a unique filename with proper extension
+      // Skip files that are already uploaded (have storage_path or no file object)
+      if (mediaFile.storage_path || !mediaFile.file) {
         const fileExt = mediaFile.file.name.split('.').pop() || 'bin';
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substring(2, 15);
@@ -527,7 +529,7 @@ export const CreateCapsule: React.FC = () => {
           id: mediaFile.id,
           name: mediaFile.file.name,
           type: mediaFile.type,
-          url: publicUrl,
+          url: publicUrl, // Store the Supabase public URL
           size: mediaFile.file.size,
           storage_path: fileName
         });
