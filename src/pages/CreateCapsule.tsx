@@ -84,6 +84,30 @@ export const CreateCapsule: React.FC = () => {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [showFileArrangement, setShowFileArrangement] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+  
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const customAudioInputRef = useRef<HTMLInputElement>(null);
+  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
+
+  // Toast helper
+  const triggerToast = (message: string, type: 'success' | 'error' | 'warning') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  // Load capsule for editing
+  useEffect(() => {
+    if (editCapsuleId && user) {
+      loadCapsuleForEditing(editCapsuleId);
+    }
+  }, [editCapsuleId, user]);
+
+  const loadCapsuleData = async (capsuleId: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
