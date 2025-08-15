@@ -703,10 +703,10 @@ export const CreateCapsule: React.FC = () => {
             size: file.file.size,
             url: publicUrl,
             storage_path: fileName
-          });
+          processedFiles.push(fileData);
         } else {
           // File already uploaded, keep existing data
-          uploadedFileUrls.push({
+          processedFiles.push({
             id: file.id,
             name: file.name,
             type: file.type,
@@ -718,7 +718,7 @@ export const CreateCapsule: React.FC = () => {
       }
 
       // Upload media files to Supabase Storage first
-      const uploadedFiles = [];
+      const processedFiles = [];
 
       for (const mediaFile of mediaFiles) {
         // Skip if file already has storage_path (already uploaded)
@@ -772,7 +772,7 @@ export const CreateCapsule: React.FC = () => {
         message: message.trim(),
         recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
         delivery_date: deliveryDate,
-        files: JSON.stringify(uploadedFiles),
+        files: JSON.stringify(processedFiles),
         customization: {
           titleFont,
           messageFont,
