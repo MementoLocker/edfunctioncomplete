@@ -224,7 +224,6 @@ export const CreateCapsule: React.FC = () => {
         }
 
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
         // Get the public URL for the uploaded file
         const { data: { publicUrl } } = supabase.storage
           .from('captules')
