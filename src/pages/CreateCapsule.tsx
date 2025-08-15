@@ -501,10 +501,10 @@ export const CreateCapsule: React.FC = () => {
         const fileName = `${user?.id}/capsules/${timestamp}-${randomId}.${fileExt}`;
         
         console.log('Uploading file:', fileName, 'Size:', mediaFile.file.size);
-        
+        // Upload to Supabase Storage - use the correct bucket name
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, mediaFile.file);
+          .from('captules')
+          .upload(fileName, file.file);
 
         if (uploadError) {
           console.error('Upload error for file:', fileName, uploadError);
@@ -514,7 +514,7 @@ export const CreateCapsule: React.FC = () => {
         console.log('Upload successful:', uploadData);
         
         const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
+          .from('captules')
           .getPublicUrl(fileName);
 
         console.log('Public URL generated:', publicUrl);
@@ -681,7 +681,14 @@ export const CreateCapsule: React.FC = () => {
         message: message.trim(),
         recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
         delivery_date: deliveryDate,
-        files: JSON.stringify(uploadedFiles),
+        files: uploadedFiles.map(file => ({
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          url: file.url,
+          size: file.size,
+          storage_path: file.storage_path
+        })),
         customization: {
           titleFont,
           messageFont,
@@ -773,34 +780,21 @@ export const CreateCapsule: React.FC = () => {
         }
       }
       
-      console.log('Files data to load:', filesData);
-      
-      if (filesData && Array.isArray(filesData)) {
-        const loadedMediaFiles: MediaFile[] = [];
-        
-        for (const fileData of filesData) {
-          try {
-            console.log('Processing file data:', fileData);
+          if (data.files && Array.isArray(data.files)) {
+            console.log('Loading media files from database:', data.files);
             
-            // Create a blob from the URL to simulate a File object
-            const response = await fetch(fileData.url);
-            const blob = await response.blob();
+            const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
+              id: fileData.id || crypto.randomUUID(),
+              file: new File([], fileData.name || 'unknown'), // Placeholder file object
+              type: fileData.type || 'image',
+              url: fileData.url || '',
+              name: fileData.name || 'Unknown file',
+              size: fileData.size || 0,
+              storage_path: fileData.storage_path
+            }));
             
-            // Create a File object from the blob
-            const file = new File([blob], fileData.name, { type: blob.type });
-            
-            loadedMediaFiles.push({
-              id: fileData.id,
-              file: file,
-              type: fileData.type,
-              url: fileData.url,
-              name: fileData.name,
-              size: fileData.size || blob.size
-            });
-            
-            console.log('Successfully loaded file:', fileData.name);
-          } catch (error) {
-            console.error('Error loading media file:', fileData.name, error);
+            console.log('Loaded media files:', loadedFiles);
+            setMediaFiles(loadedFiles);
           }
         }
         
