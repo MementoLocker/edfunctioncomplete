@@ -248,7 +248,8 @@ export const CreateCapsule: React.FC = () => {
       if (error) {
         alert(`${file.name}: ${error}`);
         continue;
-      }
+      // For new uploads, create object URL. For loaded files, use the stored URL
+      const url = URL.createObjectURL(file);
 
       const mediaFile: MediaFile = {
         id: `${Date.now()}-${i}`,
@@ -784,17 +785,19 @@ export const CreateCapsule: React.FC = () => {
       }
       
       if (data.files && Array.isArray(data.files)) {
+        console.log('Loading files from database:', data.files);
         console.log('Loading media files from database:', data.files);
         
         const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
           id: fileData.id || crypto.randomUUID(),
-          file: new File([], fileData.name || 'unknown'), // Placeholder file object
+          file: null as any, // We don't have the original file when loading from database
           type: fileData.type || 'image',
           url: fileData.url || '',
           name: fileData.name || 'Unknown file',
           size: fileData.size || 0,
           storage_path: fileData.storage_path
         }));
+        console.log('Converted to MediaFile objects:', loadedFiles);
         
         console.log('Loaded media files:', loadedFiles);
         setMediaFiles(loadedFiles);
