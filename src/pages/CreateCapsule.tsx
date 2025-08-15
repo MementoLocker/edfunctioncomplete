@@ -171,13 +171,13 @@ export const CreateCapsule: React.FC = () => {
           id: fileData.id || crypto.randomUUID(),
           file: new File([], fileData.name || 'unknown'), // placeholder file object
           type: fileData.type || 'image',
-          url: fileData.url || '', // Use stored Supabase public URL directly
+          url: fileData.url || '',
           name: fileData.name || 'Unknown file',
           size: fileData.size || 0,
           storage_path: fileData.storage_path
         }));
         setMediaFiles(loadedFiles);
-        console.log('Loaded files from draft:', loadedFiles);
+        console.log('Loaded media files from draft:', loadedFiles);
       }
 
       triggerToast('Draft loaded successfully', 'success');
@@ -361,6 +361,7 @@ export const CreateCapsule: React.FC = () => {
         return;
       }
 
+      // Use blob URL only for newly uploaded files in current session
       const mediaFile: MediaFile = {
         id: crypto.randomUUID(),
         file,
