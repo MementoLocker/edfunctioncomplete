@@ -504,7 +504,7 @@ export const CreateCapsule: React.FC = () => {
         // Upload to Supabase Storage - use the correct bucket name
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('captules')
-          .upload(fileName, file.file);
+          .upload(fileName, mediaFile.file);
 
         if (uploadError) {
           console.error('Upload error for file:', fileName, uploadError);
@@ -708,6 +708,7 @@ export const CreateCapsule: React.FC = () => {
 
       console.log('Saving capsule data:', capsuleData);
       
+      const isEditing = !!editCapsuleId;
       if (isEditing && editCapsuleId) {
         const { error } = await supabase
           .from('capsules')
@@ -767,7 +768,7 @@ export const CreateCapsule: React.FC = () => {
       setTransitionEffect(customization.transitionEffect || 'fade');
       setTransitionSpeed(customization.transitionSpeed || 'medium');
       setSlideDuration(customization.slideDuration || 5000);
-      setSelectedBackgroundMusic(customization.backgroundMusic || null);
+      setBackgroundMusic(customization.backgroundMusic || null);
 
       // Load media files
       let filesData = data.files;
@@ -780,26 +781,21 @@ export const CreateCapsule: React.FC = () => {
         }
       }
       
-          if (data.files && Array.isArray(data.files)) {
-            console.log('Loading media files from database:', data.files);
-            
-            const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
-              id: fileData.id || crypto.randomUUID(),
-              file: new File([], fileData.name || 'unknown'), // Placeholder file object
-              type: fileData.type || 'image',
-              url: fileData.url || '',
-              name: fileData.name || 'Unknown file',
-              size: fileData.size || 0,
-              storage_path: fileData.storage_path
-            }));
-            
-            console.log('Loaded media files:', loadedFiles);
-            setMediaFiles(loadedFiles);
-          }
-        }
+      if (data.files && Array.isArray(data.files)) {
+        console.log('Loading media files from database:', data.files);
         
-        console.log('Setting media files:', loadedMediaFiles);
-        setMediaFiles(loadedMediaFiles);
+        const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
+          id: fileData.id || crypto.randomUUID(),
+          file: new File([], fileData.name || 'unknown'), // Placeholder file object
+          type: fileData.type || 'image',
+          url: fileData.url || '',
+          name: fileData.name || 'Unknown file',
+          size: fileData.size || 0,
+          storage_path: fileData.storage_path
+        }));
+        
+        console.log('Loaded media files:', loadedFiles);
+        setMediaFiles(loadedFiles);
       }
     } catch (error) {
       console.error('Error loading capsule:', error);
