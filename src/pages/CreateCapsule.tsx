@@ -703,10 +703,10 @@ export const CreateCapsule: React.FC = () => {
             size: file.file.size,
             url: publicUrl,
             storage_path: fileName
-          processedFiles.push(fileData);
+          });
         } else {
           // File already uploaded, keep existing data
-          processedFiles.push({
+          uploadedFileUrls.push({
             id: file.id,
             name: file.name,
             type: file.type,
