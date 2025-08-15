@@ -763,6 +763,10 @@ export const CreateCapsule: React.FC = () => {
           console.log('Successfully uploaded file:', mediaFile.name, 'to', publicUrl);
         } catch (fileError) {
           console.error('Failed to upload file:', mediaFile.name, fileError);
+        }
+      }
+
+      const capsuleData = {
         user_id: user.id,
         title: title.trim(),
         message: message.trim(),
@@ -799,6 +803,7 @@ export const CreateCapsule: React.FC = () => {
 
       console.log('Saving capsule data:', capsuleData);
       
+      const isEditing = !!editCapsuleId;
       if (isEditing && editCapsuleId) {
         const { error } = await supabase
           .from('capsules')
@@ -912,7 +917,7 @@ export const CreateCapsule: React.FC = () => {
       setTransitionEffect(customization.transitionEffect || 'fade');
       setTransitionSpeed(customization.transitionSpeed || 'medium');
       setSlideDuration(customization.slideDuration || 5000);
-      setSelectedBackgroundMusic(customization.backgroundMusic || null);
+      setBackgroundMusic(customization.backgroundMusic || null);
 
       // Load media files
       let filesData = data.files;
