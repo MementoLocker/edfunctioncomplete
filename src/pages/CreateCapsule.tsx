@@ -718,12 +718,57 @@ export const CreateCapsule: React.FC = () => {
       }
 
       const capsuleData = {
+      // Upload media files to Supabase Storage first
+      const uploadedFiles = [];
+      
+      for (const mediaFile of mediaFiles) {
+        // Skip if file already has storage_path (already uploaded)
+        if (mediaFile.storage_path) {
+          uploadedFiles.push({
+            id: mediaFile.id,
+            name: mediaFile.name,
+            type: mediaFile.type,
+            size: mediaFile.size,
+            url: mediaFile.url,
+            storage_path: mediaFile.storage_path
+          });
+          continue;
+        }
+
+        // Upload new file
+        const fileExt = mediaFile.file.name.split('.').pop();
+        const fileName = `${user.id}/capsules/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, mediaFile.file);
+
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          throw new Error(`Failed to upload ${mediaFile.name}`);
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+        uploadedFiles.push({
+          id: mediaFile.id,
+          name: mediaFile.name,
+          type: mediaFile.type,
+          size: mediaFile.size,
+          url: publicUrl,
+          storage_path: fileName
+        });
+      }
+
         user_id: user.id,
         title: title.trim(),
         message: message.trim(),
         recipients: recipients.filter(r => r.name.trim() && r.email.trim()),
         delivery_date: deliveryDate,
-        files: JSON.stringify(uploadedFileUrls),
+        files: JSON.stringify(uploadedFiles),
         customization: {
           titleFont,
           messageFont,
@@ -740,6 +785,17 @@ export const CreateCapsule: React.FC = () => {
         },
         status: 'draft'
       };
+
+      // Update local state with uploaded file data
+      setMediaFiles(uploadedFiles.map(file => ({
+        id: file.id,
+        file: new File([], file.name), // Placeholder file object
+        type: file.type as 'image' | 'video' | 'audio',
+        url: file.url,
+        name: file.name,
+        size: file.size,
+        storage_path: file.storage_path
+      })));
 
       console.log('Saving capsule data:', capsuleData);
       
@@ -795,6 +851,30 @@ export const CreateCapsule: React.FC = () => {
       console.log('Loaded capsule data:', data);
       
       // Load basic fields
+      // Load media files
+      if (data.files) {
+        try {
+          const filesData = typeof data.files === 'string' ? JSON.parse(data.files) : data.files;
+          if (Array.isArray(filesData)) {
+            const loadedMediaFiles = filesData.map(file => ({
+              id: file.id || Math.random().toString(36).substring(7),
+              file: new File([], file.name), // Placeholder file object
+              type: file.type as 'image' | 'video' | 'audio',
+              url: file.url,
+              name: file.name,
+              size: file.size || 0,
+              storage_path: file.storage_path
+            }));
+            setMediaFiles(loadedMediaFiles);
+          }
+        } catch (parseError) {
+          console.error('Error parsing files data:', parseError);
+          setMediaFiles([]);
+        }
+      } else {
+        setMediaFiles([]);
+      }
+
       setTitle(data.title || '');
       setMessage(data.message || '');
       setRecipients(data.recipients || [{ name: '', email: '' }]);
