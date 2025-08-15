@@ -524,7 +524,8 @@ export const CreateCapsule: React.FC = () => {
           name: mediaFile.file.name,
           type: mediaFile.type,
           url: publicUrl,
-          size: mediaFile.file.size,
+          url: mediaFile.url,
+          storage_path: mediaFile.storage_path
           storage_path: fileName
         });
       } catch (error) {
@@ -535,8 +536,8 @@ export const CreateCapsule: React.FC = () => {
     
     return uploadedFiles;
   };
-
-  // Handle form submission
+        const { error: uploadError } = await supabase.storage
+          .from('captules')
   const handleSubmit = async (saveAsDraft = false) => {
     if (!saveAsDraft) {
       // Full validation for final submission
@@ -545,7 +546,7 @@ export const CreateCapsule: React.FC = () => {
         return;
       }
       
-      if (!senderName.trim()) {
+          .from('captules')
         alert('Please enter a sender name');
         return;
       }
@@ -555,7 +556,8 @@ export const CreateCapsule: React.FC = () => {
         return;
       }
 
-      if (recipients.some(r => !r.name.trim() || !r.email.trim())) {
+          url: publicUrl,
+          storage_path: fileName
         alert('Please fill in all recipient information');
         return;
       }
@@ -592,7 +594,7 @@ export const CreateCapsule: React.FC = () => {
         : recipients;
       
       // Simplified data structure for debugging
-      const capsuleData = {
+        files: uploadedFiles,
         title: title.trim(),
         message: message.trim() || null,
         recipients: validRecipients,
@@ -754,23 +756,17 @@ export const CreateCapsule: React.FC = () => {
       setTitleSize(customization.titleSize || 'text-4xl');
       setMessageSize(customization.messageSize || 'text-lg');
       setBackgroundColor(customization.backgroundColor || '#FFFFFF');
-      setBackgroundType(customization.backgroundType || 'solid');
-      setGradientDirection(customization.gradientDirection || 'to-b');
-      setSecondaryColor(customization.secondaryColor || '#F3F4F6');
-      setTransitionEffect(customization.transitionEffect || 'fade');
-      setTransitionSpeed(customization.transitionSpeed || 'medium');
-      setSlideDuration(customization.slideDuration || 5000);
-      setSelectedBackgroundMusic(customization.backgroundMusic || null);
-
-      // Load media files
-      let filesData = data.files;
-      if (typeof filesData === 'string') {
-        try {
-          filesData = JSON.parse(filesData);
-        } catch (e) {
-          console.error('Error parsing files JSON:', e);
-          filesData = [];
-        }
+      if (data.files && Array.isArray(data.files)) {
+        const loadedFiles: MediaFile[] = data.files.map((fileData: any) => ({
+          id: fileData.id || crypto.randomUUID(),
+          file: new File([], fileData.name || 'unknown'), // placeholder file object
+          type: fileData.type || 'image',
+          url: fileData.url || '',
+          name: fileData.name || 'Unknown file',
+          size: fileData.size || 0,
+          storage_path: fileData.storage_path
+        }));
+        setMediaFiles(loadedFiles);
       }
       
       console.log('Files data to load:', filesData);
@@ -817,8 +813,8 @@ export const CreateCapsule: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 mb-4" style={{ borderColor: '#C0A172' }}></div>
-          <p className="text-gray-600">Loading your time capsule...</p>
+      // Skip files that are already uploaded (have storage_path)
+      if (mediaFile.storage_path) {
         </div>
       </div>
     );
